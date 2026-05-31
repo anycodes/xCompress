@@ -99,6 +99,33 @@ test('compress node bundles multi-file project into one file', async () => {
   fs.rmSync(d, { recursive: true, force: true });
 });
 
+test('compress node (webpack engine) also bundles into a single file', async () => {
+  let hasWebpack = true;
+  try {
+    require.resolve('webpack');
+  } catch {
+    hasWebpack = false;
+  }
+  if (!hasWebpack) {
+    console.log('      (skipped: optional dependency webpack not installed)');
+    return;
+  }
+  const d = tmpdir('scc-wp-');
+  fs.writeFileSync(path.join(d, 'lib.js'), 'module.exports = { add: (a, b) => a + b };');
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "const { add } = require('./lib');\nexports.handler = () => ({ sum: add(2, 3) });"
+  );
+  const result = await compress(d, { runtime: 'node', engine: 'webpack', out: 'dist' });
+  assert.strictEqual(result.engine, 'webpack');
+  assert.ok(fs.existsSync(result.outfile), 'outfile exists');
+  // exactly one file — the *.LICENSE.txt side-file is suppressed
+  assert.strictEqual(measure(result.outDir).files, 1, 'single-file output');
+  const mod = require(result.outfile);
+  assert.deepStrictEqual(mod.handler(), { sum: 5 }, 'bundled handler works');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
 test('compress node warns on dynamic require (would break at runtime)', async () => {
   const d = tmpdir('scc-dyn-');
   fs.mkdirSync(path.join(d, 'plugins'));
@@ -198,6 +225,62 @@ test('self-check honors a custom handler name and can be disabled', async () => 
   fs.rmSync(d, { recursive: true, force: true });
 });
 
+test('compress node keeps externals as a runtime require (not inlined)', async () => {
+  const d = tmpdir('scc-ext-');
+  // the require is lazy (inside the handler), so loading the bundle for the
+  // self-check never tries to resolve the (non-existent) external module.
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "exports.handler = () => { const sdk = require('@scc/platform-sdk'); return typeof sdk; };"
+  );
+  const result = await compress(d, { runtime: 'node', out: 'dist', externals: ['@scc/platform-sdk'] });
+  const src = fs.readFileSync(result.outfile, 'utf8');
+  assert.ok(/@scc\/platform-sdk/.test(src), 'external left as a runtime require, not bundled');
+  assert.ok(result.check && result.check.ok, 'self-check still passes');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('minify yields a smaller artifact than --no-minify', async () => {
+  const d = tmpdir('scc-min-');
+  const decls = Array.from({ length: 50 }, (_, i) => `  const longVariableName_${i} = ${i}; // descriptive comment ${i}`).join('\n');
+  const sum = Array.from({ length: 50 }, (_, i) => `longVariableName_${i}`).join(' + ');
+  fs.writeFileSync(path.join(d, 'index.js'), `exports.handler = () => {\n${decls}\n  return ${sum};\n};`);
+  const min = await compress(d, { runtime: 'node', out: 'dist-min', minify: true });
+  const raw = await compress(d, { runtime: 'node', out: 'dist-raw', minify: false });
+  const minBytes = measure(min.outDir).bytes;
+  const rawBytes = measure(raw.outDir).bytes;
+  assert.ok(minBytes < rawBytes, `minified ${minBytes}B should be < unminified ${rawBytes}B`);
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('--sourcemap emits a .map alongside the bundle', async () => {
+  const d = tmpdir('scc-map-');
+  fs.writeFileSync(path.join(d, 'index.js'), 'exports.handler = () => 1;');
+  const result = await compress(d, { runtime: 'node', out: 'dist', sourcemap: true });
+  assert.ok(fs.existsSync(result.outfile + '.map'), 'source map written next to the bundle');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('compress node throws a helpful error when no entry can be found', async () => {
+  const d = tmpdir('scc-noentry-');
+  fs.writeFileSync(path.join(d, 'readme.txt'), 'no entry here');
+  await assert.rejects(
+    () => compress(d, { runtime: 'node', out: 'dist' }),
+    /no entry file found/,
+    'missing entry surfaces a clear error'
+  );
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('compress node warns (does not crash) when a declared asset is missing', async () => {
+  const d = tmpdir('scc-miss-');
+  fs.writeFileSync(path.join(d, 'index.js'), 'exports.handler = () => 1;');
+  const result = await compress(d, { runtime: 'node', out: 'dist', assets: ['does-not-exist.json'] });
+  assert.ok(result.warnings.some((w) => /asset not found/.test(w)), 'missing-asset warning surfaced');
+  assert.ok(result.check && result.check.ok, 'build still succeeds');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
 // --- python runtime (slimmer) ----------------------------------------------
 
 test('compress python strips caches/tests, keeps code; meta gated by flag', async () => {
@@ -227,6 +310,18 @@ test('compress python strips caches/tests, keeps code; meta gated by flag', asyn
   const meta = await compress(d, { runtime: 'python', out: 'slim2', pyPruneMeta: true });
   assert.ok(!fs.existsSync(path.join(meta.outDir, 'mylib-1.0.dist-info')), 'dist-info pruned with flag');
 
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('compress python keeps real code (.so) while pruning caches', async () => {
+  const d = tmpdir('scc-pyso-');
+  fs.writeFileSync(path.join(d, 'index.py'), 'def handler(e, c):\n    return 1\n');
+  fs.writeFileSync(path.join(d, '_speedup.so'), Buffer.from('\x7fELF-fake-shared-object'));
+  fs.mkdirSync(path.join(d, '__pycache__'), { recursive: true });
+  fs.writeFileSync(path.join(d, '__pycache__', 'index.cpython-39.pyc'), 'bytecode');
+  const r = await compress(d, { runtime: 'python', out: 'slim' });
+  assert.ok(fs.existsSync(path.join(r.outDir, '_speedup.so')), '.so shared object kept');
+  assert.ok(!fs.existsSync(path.join(r.outDir, '__pycache__')), 'bytecode cache pruned');
   fs.rmSync(d, { recursive: true, force: true });
 });
 

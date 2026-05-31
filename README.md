@@ -309,6 +309,35 @@ src/engines/webpack.js  single-file bundle via webpack
 The CLI and the Serverless Devs component are thin adapters over the same
 `compress()` core, so both forms produce identical artifacts and reports.
 
+## Disclaimer and expectations
+
+`scc` is provided **"as is", without warranty of any kind** (see the MIT
+[LICENSE](LICENSE)). Always run the self-check and test your function before
+deploying the produced artifact to production.
+
+**The numbers in this README are illustrative, not guarantees.** The reductions
+shown in the examples (e.g. ≈ −96 % for the Node demo, ≈ −75 % for the Python
+demo) were measured for *those specific projects on one machine*. What you
+actually get depends on several factors and will differ:
+
+- **Your dependency tree.** The dominant Node win is collapsing `node_modules`
+  into a single file, so a project with few or already-small dependencies has
+  proportionally less to gain.
+- **Runtime and package contents.** The Python slimmer only removes deadweight
+  (`__pycache__`, `*.pyc/pyo`, tests, optional metadata); it does **no** bundling
+  or minification, so a package that carries little deadweight shrinks little.
+- **Engine and options.** esbuild vs. webpack, `--minify` / `--no-minify`,
+  `--external`, `--sourcemap`, and the target version all change the output.
+- **Tool and engine versions.** `scc` and its bundlers (esbuild, webpack) are
+  **upgraded over time**. Their optimization behavior and the exact output sizes
+  may change between releases, and correctness/stability fixes can take
+  precedence over squeezing out the last bytes. If you need byte-for-byte
+  reproducible artifacts, pin the `scc`, `esbuild`, and `webpack` versions.
+
+Finally, `scc` reports **package size and file count** — proxies for cold-start
+cost. It does **not** measure end-to-end cold-start latency, which also depends
+on the platform, region, configured memory, and network.
+
 ## Limitations
 
 - **Dynamic `require`/`import`** targets are not bundled (warned, not fixed).
@@ -327,10 +356,14 @@ The CLI and the Serverless Devs component are thin adapters over the same
 npm test
 ```
 
-16 tests covering reporting math, configuration precedence/auto-detection, real
-Node bundling (multi-file → one file, handler callable), the correctness
-safeguards (dynamic-require / `__dirname` warnings, asset copying, native
-`.node` copy, self-check pass/fail), and the Python prune logic.
+23 tests covering reporting math, configuration precedence/auto-detection, real
+Node bundling with **both engines** (esbuild and webpack: multi-file → one file,
+handler callable), engine options (externals kept as runtime `require`,
+minification actually shrinks output, `--sourcemap` emission), the correctness
+safeguards (dynamic-require / `__dirname` warnings, asset copying, missing-asset
+warning, native `.node` copy, self-check pass/fail, helpful error on missing
+entry), and the Python slimmer (prunes caches/tests, keeps real code including
+`.so`, metadata gated by flag).
 
 ## License
 
