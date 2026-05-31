@@ -1,0 +1,16 @@
+edition: 3.0.0
+name: scc-example
+# Example Serverless Devs app that compresses the Node demo before deploy.
+# From this directory:  s compress
+#
+# `component` points at the local component for the demo; in a real project
+# use the published name:  component: serverless-code-compressor
+resources:
+  hello:
+    component: ../../component
+    props:
+      src: ../node-demo
+      runtime: node
+      engine: esbuild
+      out: dist
+      minify: true

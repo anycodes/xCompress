@@ -1,0 +1,46 @@
+{
+  "name": "serverless-code-compressor",
+  "version": "0.1.0",
+  "description": "Build-time code compression for serverless functions: bundle dependencies into a single minified file (Node) or slim the deployment package (Python) to cut cold-start time.",
+  "bin": {
+    "scc": "bin/cli.js"
+  },
+  "main": "src/index.js",
+  "type": "commonjs",
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "keywords": [
+    "serverless",
+    "cold-start",
+    "code-compression",
+    "bundle",
+    "esbuild",
+    "webpack",
+    "faas",
+    "function-compute",
+    "scf"
+  ],
+  "license": "MIT",
+  "author": "anycodes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anycodes/xCompress"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "esbuild": "^0.21.5"
+  },
+  "optionalDependencies": {
+    "webpack": "^5.91.0",
+    "webpack-node-externals": "^3.0.0"
+  }
+}

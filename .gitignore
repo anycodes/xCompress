@@ -1,0 +1,16 @@
+node_modules/
+
+# build outputs produced by the tool / examples
+dist/
+dist-*/
+slim/
+slim*/
+examples/**/package/
+examples/**/dist/
+examples/**/dist-*/
+examples/**/slim/
+examples/**/slim*/
+
+# os / editor
+.DS_Store
+*.log

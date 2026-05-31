@@ -1,0 +1,50 @@
+Type: Component
+Name: serverless-code-compressor
+Provider:
+  - 阿里云
+  - 腾讯云
+Version: 0.1.0
+Description: Compress serverless function code before deploy — bundle Node deps into one minified file or slim the Python package — to reduce cold-start time.
+HomePage: https://github.com/anycodes/xCompress
+Tags:
+  - 代码压缩
+  - 冷启动优化
+  - cold-start
+Category: 其它
+Service:
+  函数计算:
+    Authorities:
+      - 读取代码目录
+Commands:
+  compress: Bundle (Node) or slim (Python) the function code and print a before/after report
+Properties:
+  src:
+    Description: Project directory to compress (relative to s.yaml)
+    Required: false
+    Type:
+      - String
+  runtime:
+    Description: node | python
+    Required: false
+    Type:
+      - String
+  engine:
+    Description: esbuild | webpack (node runtime only)
+    Required: false
+    Type:
+      - String
+  out:
+    Description: Output directory for the compressed artifact
+    Required: false
+    Type:
+      - String
+  externals:
+    Description: Modules to keep external (not bundled)
+    Required: false
+    Type:
+      - List<String>
+  minify:
+    Description: Minify the output (default true)
+    Required: false
+    Type:
+      - Boolean

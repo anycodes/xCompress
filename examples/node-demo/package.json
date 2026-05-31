@@ -1,0 +1,12 @@
+{
+  "name": "scc-node-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sample serverless handler used to demonstrate scc bundling.",
+  "main": "index.js",
+  "dependencies": {
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21",
+    "nanoid": "^3.3.7"
+  }
+}
