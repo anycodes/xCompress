@@ -8,6 +8,7 @@ const path = require('path');
 
 const { resolveConfig, DEFAULTS } = require('../src/config');
 const { measure, formatBytes, reductionPct, buildReport } = require('../src/report');
+const { scanDynamicRequire, scanDirnameUsage, isStaticArg } = require('../src/detect');
 const { compress } = require('../src/index');
 
 let passed = 0;
@@ -322,6 +323,90 @@ test('compress python keeps real code (.so) while pruning caches', async () => {
   const r = await compress(d, { runtime: 'python', out: 'slim' });
   assert.ok(fs.existsSync(path.join(r.outDir, '_speedup.so')), '.so shared object kept');
   assert.ok(!fs.existsSync(path.join(r.outDir, '__pycache__')), 'bytecode cache pruned');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+// --- detect.js (static analysis) -------------------------------------------
+
+test('isStaticArg accepts only fully-static specifiers', () => {
+  assert.ok(isStaticArg("'lodash'"), 'single-quoted literal');
+  assert.ok(isStaticArg('"./lib"'), 'double-quoted literal');
+  assert.ok(isStaticArg('`./lib`'), 'plain template literal');
+  assert.ok(isStaticArg("  'spaced' "), 'surrounding whitespace tolerated');
+  assert.ok(!isStaticArg('`./plugins/${name}`'), 'interpolated template is dynamic');
+  assert.ok(!isStaticArg("'./plugins/' + name"), 'concatenation is dynamic');
+  assert.ok(!isStaticArg('name'), 'bare identifier is dynamic');
+});
+
+test('scanDynamicRequire flags concatenation and skips node_modules', () => {
+  const d = tmpdir('scc-scan-');
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "const a = require('./ok');\nconst b = require('./p/' + x);\n"
+  );
+  fs.mkdirSync(path.join(d, 'node_modules', 'dep'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'node_modules', 'dep', 'i.js'), "require('./' + y);");
+  const found = scanDynamicRequire(d);
+  assert.strictEqual(found.length, 1, 'only the user-source dynamic call is reported');
+  assert.strictEqual(found[0].line, 2, 'points at the concatenated require');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('scanDirnameUsage finds __dirname and __filename, honors ignore list', () => {
+  const d = tmpdir('scc-dirscan-');
+  fs.writeFileSync(path.join(d, 'index.js'), "const p = __filename;\n");
+  fs.mkdirSync(path.join(d, 'vendor'));
+  fs.writeFileSync(path.join(d, 'vendor', 'v.js'), 'const q = __dirname;');
+  assert.strictEqual(scanDirnameUsage(d).length, 2, 'both files scanned by default');
+  assert.strictEqual(
+    scanDirnameUsage(d, ['vendor']).length,
+    1,
+    'ignored directory excluded'
+  );
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+// --- config.js (precedence edge cases) -------------------------------------
+
+test('resolveConfig reads scc.config.json when package.json has no scc field', () => {
+  const d = tmpdir('scc-onlyfile-');
+  fs.writeFileSync(path.join(d, 'scc.config.json'), JSON.stringify({ engine: 'webpack', minify: false }));
+  fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x' }));
+  const cfg = resolveConfig(d, {});
+  assert.strictEqual(cfg.engine, 'webpack');
+  assert.strictEqual(cfg.minify, false);
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('resolveConfig ignores undefined/null CLI options (no clobbering)', () => {
+  const d = tmpdir('scc-nullcli-');
+  fs.writeFileSync(path.join(d, 'scc.config.json'), JSON.stringify({ out: 'fromfile' }));
+  const cfg = resolveConfig(d, { out: undefined, engine: null });
+  assert.strictEqual(cfg.out, 'fromfile', 'undefined CLI value does not override file');
+  assert.strictEqual(cfg.engine, DEFAULTS.engine, 'null CLI value falls back to default');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('resolveConfig auto-detects python entry by candidate order', () => {
+  const d = tmpdir('scc-pyentry-');
+  fs.writeFileSync(path.join(d, 'main.py'), '');
+  fs.writeFileSync(path.join(d, 'app.py'), '');
+  const cfg = resolveConfig(d, { runtime: 'python' });
+  assert.strictEqual(cfg.entry, 'main.py', 'main.py wins over app.py per candidate order');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+// --- report.js (recursion) --------------------------------------------------
+
+test('measure recurses into nested subdirectories', () => {
+  const d = tmpdir('scc-nested-');
+  fs.mkdirSync(path.join(d, 'a', 'b'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'top.txt'), 'xx'); // 2 bytes
+  fs.writeFileSync(path.join(d, 'a', 'mid.txt'), 'yyy'); // 3 bytes
+  fs.writeFileSync(path.join(d, 'a', 'b', 'deep.txt'), 'zzzz'); // 4 bytes
+  const m = measure(d);
+  assert.strictEqual(m.files, 3);
+  assert.strictEqual(m.bytes, 9);
   fs.rmSync(d, { recursive: true, force: true });
 });
 

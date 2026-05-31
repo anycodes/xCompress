@@ -356,14 +356,15 @@ on the platform, region, configured memory, and network.
 npm test
 ```
 
-23 tests covering reporting math, configuration precedence/auto-detection, real
+30 tests covering reporting math, configuration precedence/auto-detection, real
 Node bundling with **both engines** (esbuild and webpack: multi-file → one file,
 handler callable), engine options (externals kept as runtime `require`,
 minification actually shrinks output, `--sourcemap` emission), the correctness
 safeguards (dynamic-require / `__dirname` warnings, asset copying, missing-asset
 warning, native `.node` copy, self-check pass/fail, helpful error on missing
-entry), and the Python slimmer (prunes caches/tests, keeps real code including
-`.so`, metadata gated by flag).
+entry), the static-analysis helpers (static vs. dynamic specifier
+classification, `node_modules`/ignore-list scoping), and the Python slimmer
+(prunes caches/tests, keeps real code including `.so`, metadata gated by flag).
 
 ## License
 
