@@ -1,11 +1,13 @@
+Edition: 3.0.0
 Type: Component
-Name: serverless-code-compressor
+Name: xcompress
 Provider:
   - 阿里云
   - 腾讯云
-Version: 0.1.2
+Version: 0.1.0
 Description: Compress serverless function code before deploy — bundle Node deps into one minified file or slim the Python package — to reduce cold-start time.
 HomePage: https://github.com/anycodes/xCompress
+Effective: Public
 Tags:
   - 代码压缩
   - 冷启动优化
@@ -17,34 +19,60 @@ Service:
       - 读取代码目录
 Commands:
   compress: Bundle (Node) or slim (Python) the function code and print a before/after report
-Properties:
-  src:
-    Description: Project directory to compress (relative to s.yaml)
-    Required: false
-    Type:
-      - String
-  runtime:
-    Description: node | python
-    Required: false
-    Type:
-      - String
-  engine:
-    Description: esbuild | webpack (node runtime only)
-    Required: false
-    Type:
-      - String
-  out:
-    Description: Output directory for the compressed artifact
-    Required: false
-    Type:
-      - String
-  externals:
-    Description: Modules to keep external (not bundled)
-    Required: false
-    Type:
-      - List<String>
-  minify:
-    Description: Minify the output (default true)
-    Required: false
-    Type:
-      - Boolean
+Parameters:
+  type: object
+  additionalProperties: true
+  properties:
+    src:
+      type: string
+      required: false
+      description: Project directory to compress (relative to s.yaml)
+    runtime:
+      type: string
+      required: false
+      description: node | python
+      default: node
+      enum:
+        - node
+        - python
+    engine:
+      type: string
+      required: false
+      description: Bundling engine
+      default: auto
+      enum:
+        - auto
+        - esbuild
+        - rollup
+        - webpack
+    level:
+      type: string
+      required: false
+      description: Compression level preset
+      default: medium
+      enum:
+        - low
+        - medium
+        - high
+    out:
+      type: string
+      required: false
+      description: Output directory for the compressed artifact
+      default: dist
+    externals:
+      type: array
+      required: false
+      description: Modules to keep external (not bundled)
+    assets:
+      type: array
+      required: false
+      description: Extra files/dirs to copy into the output
+    minify:
+      type: boolean
+      required: false
+      description: Minify the output (default true)
+    handler:
+      type: string
+      required: false
+      description: Handler export name for self-check
+      default: handler

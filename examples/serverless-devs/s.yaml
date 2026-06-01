@@ -4,10 +4,10 @@ name: scc-example
 # From this directory:  s compress
 #
 # `component` points at the local component for the demo; in a real project
-# use the published name:  component: serverless-code-compressor
+# use the published name:  component: xcompress
 resources:
   hello:
-    component: serverless-code-compressor
+    component: xcompress
     props:
       src: ../node-demo
       runtime: node

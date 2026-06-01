@@ -6,7 +6,7 @@ resources:
   demo-function:
     actions:
       pre-deploy:
-        - component: serverless-code-compressor
+        - component: xcompress
           props:
             src: ./code
             runtime: node
