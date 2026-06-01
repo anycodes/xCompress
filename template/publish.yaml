@@ -1,0 +1,51 @@
+Type: Application
+Name: start-scc-compress
+Provider:
+  - 阿里云
+  - 腾讯云
+Version: 0.1.0
+Description: Starter template for a Serverless function with xCompress (scc) code compression pre-configured. Run `s deploy` to compress and deploy in one step.
+HomePage: https://github.com/anycodes/xCompress
+Tags:
+  - 代码压缩
+  - 冷启动优化
+  - cold-start
+  - Node.js
+  - Serverless
+Category: 其它
+Service:
+  函数计算:
+    Authorities:
+      - 创建函数
+Parameters:
+  type: object
+  additionalProperties: false
+  required:
+    - region
+    - functionName
+  properties:
+    region:
+      type: string
+      default: cn-hangzhou
+      description: 部署地域 / Region to deploy to
+      enum:
+        - cn-hangzhou
+        - cn-shanghai
+        - cn-beijing
+        - cn-shenzhen
+        - ap-southeast-1
+    functionName:
+      type: string
+      default: scc-demo
+      description: 函数名称 / Function name
+    runtime:
+      type: string
+      default: nodejs18
+      description: 函数运行时 / Function runtime
+      enum:
+        - nodejs14
+        - nodejs16
+        - nodejs18
+        - nodejs20
+        - python3.9
+        - python3.10

@@ -1,0 +1,22 @@
+edition: 3.0.0
+name: {{ functionName }}
+access: default
+
+resources:
+  {{ functionName }}:
+    actions:
+      pre-deploy:
+        - component: serverless-code-compressor
+          props:
+            runtime: node
+            engine: esbuild
+            minify: true
+    component: fc3
+    props:
+      region: {{ region }}
+      functionName: {{ functionName }}
+      runtime: {{ runtime }}
+      handler: index.handler
+      code: ./code
+      memorySize: 512
+      timeout: 30

@@ -1,6 +1,6 @@
 {
   "name": "serverless-code-compressor-component",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Serverless Devs component that compresses function code (bundle for Node, slim for Python) before deploy to cut cold-start time.",
   "main": "index.js",
   "type": "commonjs",
@@ -11,6 +11,9 @@
     "cold-start",
     "code-compression"
   ],
+  "dependencies": {
+    "esbuild": "^0.20.0"
+  },
   "license": "MIT",
   "author": "anycodes"
 }

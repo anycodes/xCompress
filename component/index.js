@@ -1,8 +1,8 @@
 'use strict';
 
 const path = require('path');
-const { compress } = require('../src/index');
-const { renderTable } = require('../src/report');
+const { compress } = require('./src/index');
+const { renderTable } = require('./src/report');
 
 // Serverless Devs component wrapper around the scc core.
 // Configure via `props` in s.yaml; invoke with: s compress

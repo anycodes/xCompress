@@ -17,7 +17,7 @@ function bundle(cfg, absEntry, outDir) {
   }
 
   const outfile = path.join(outDir, 'index.js');
-  const buildOpts = {
+  const result = esbuild.buildSync({
     entryPoints: [absEntry],
     bundle: true,
     platform: 'node',
@@ -30,12 +30,10 @@ function bundle(cfg, absEntry, outDir) {
     outfile,
     logLevel: 'silent',
     legalComments: 'none',
+    // Native addons can't be inlined into JS; copy the binary next to the
+    // bundle and rewrite the require path, instead of failing the build.
     loader: { '.node': 'copy' },
-  };
-  if (cfg.dropConsole) {
-    buildOpts.drop = ['console', 'debugger'];
-  }
-  const result = esbuild.buildSync(buildOpts);
+  });
 
   const warnings = esbuild.formatMessagesSync(result.warnings || [], {
     kind: 'warning',

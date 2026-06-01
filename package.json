@@ -42,5 +42,11 @@
   "optionalDependencies": {
     "webpack": "^5.91.0",
     "webpack-node-externals": "^3.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "rollup": "^4.61.0"
   }
 }

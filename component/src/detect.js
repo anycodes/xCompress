@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SRC_EXT = new Set(['.js', '.cjs', '.mjs', '.ts', '.tsx', '.mts', '.cts']);
+const SRC_EXT = new Set(['.js', '.cjs', '.mjs']);
 
 // True when `arg` is a single, fully-static module specifier that a bundler
 // can resolve at build time: 'x', "x", or `x` with no ${} interpolation.
@@ -23,20 +23,17 @@ function scanFile(file) {
   }
   const found = [];
   const lines = txt.split(/\r?\n/);
-
-  // Scan full text to handle multi-line require/import calls
-  const re = /\b(require|import)\s*\(([^)]*)\)/g;
-  let m;
-  while ((m = re.exec(txt))) {
-    const arg = m[2];
-    if (arg.trim() === '') continue;
-    if (!isStaticArg(arg)) {
-      // Compute line number from character offset
-      const lineNum = txt.slice(0, m.index).split(/\r?\n/).length;
-      const snippet = lines[lineNum - 1].trim().slice(0, 120);
-      found.push({ file, line: lineNum, snippet });
+  lines.forEach((line, i) => {
+    const re = /\b(require|import)\s*\(([^)]*)\)/g;
+    let m;
+    while ((m = re.exec(line))) {
+      const arg = m[2];
+      if (arg.trim() === '') continue; // e.g. a bare import() typo — ignore
+      if (!isStaticArg(arg)) {
+        found.push({ file, line: i + 1, snippet: line.trim().slice(0, 120) });
+      }
     }
-  }
+  });
   return found;
 }
 

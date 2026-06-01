@@ -3,7 +3,7 @@ Name: serverless-code-compressor
 Provider:
   - 阿里云
   - 腾讯云
-Version: 0.1.0
+Version: 0.1.1
 Description: Compress serverless function code before deploy — bundle Node deps into one minified file or slim the Python package — to reduce cold-start time.
 HomePage: https://github.com/anycodes/xCompress
 Tags:

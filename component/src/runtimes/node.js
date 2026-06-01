@@ -10,22 +10,12 @@ const { scanDynamicRequire, scanDirnameUsage } = require('../detect');
 // is actually a function. This is the artifact's smoke test: it proves the
 // produced file is loadable and exposes the entry point, not just smaller.
 function selfCheck(outfile, name) {
-  // Phase 1: verify the handler export exists and is callable
-  // Phase 2: dry-run invoke with empty event to catch obvious runtime errors
-  const checkCode =
+  const code =
     `const m = require(${JSON.stringify(outfile)});` +
-    `if (!m || typeof m[${JSON.stringify(name)}] !== 'function') process.exit(3);` +
-    `try { const r = m[${JSON.stringify(name)}]({}, {});` +
-    `  if (r && typeof r.then === 'function') r.then(() => process.exit(0)).catch(e => { process.stderr.write(String(e.message || e)); process.exit(4); });` +
-    `  else process.exit(0);` +
-    `} catch(e) { process.stderr.write(String(e.message || e)); process.exit(4); }`;
-  const r = spawnSync(process.execPath, ['-e', checkCode], { encoding: 'utf8', timeout: 15000 });
+    `process.exit(m && typeof m[${JSON.stringify(name)}] === 'function' ? 0 : 3);`;
+  const r = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', timeout: 10000 });
   if (r.status === 0) return { ok: true, handler: name };
   if (r.status === 3) return { ok: false, handler: name, reason: 'export missing or not a function' };
-  if (r.status === 4) {
-    const err = (r.stderr || '').trim().split('\n').pop();
-    return { ok: true, handler: name, invokeWarning: `handler threw on dry-run: ${err}` };
-  }
   const err = ((r.stderr || '') + (r.error ? r.error.message : '')).trim().split('\n').pop();
   return { ok: false, handler: name, reason: `bundle failed to load: ${err || 'unknown error'}` };
 }
@@ -65,78 +55,10 @@ function copyAsset(projectDir, outDir, rel) {
 const ENGINES = {
   esbuild: () => require('../engines/esbuild'),
   webpack: () => require('../engines/webpack'),
-  rollup: () => require('../engines/rollup'),
 };
 
-const AUTO_ORDER = ['esbuild', 'rollup', 'webpack'];
-
-// Scan node_modules for packages containing native addons or node-pre-gyp.
-function detectNativePackages(projectDir) {
-  const nm = path.join(projectDir, 'node_modules');
-  if (!fs.existsSync(nm)) return [];
-  const natives = [];
-  try {
-    for (const pkg of fs.readdirSync(nm)) {
-      if (pkg.startsWith('.') || pkg.startsWith('@')) {
-        if (pkg.startsWith('@')) {
-          const scopeDir = path.join(nm, pkg);
-          try {
-            for (const sub of fs.readdirSync(scopeDir)) {
-              const pkgDir = path.join(scopeDir, sub);
-              if (hasNativeIndicators(pkgDir)) natives.push(`${pkg}/${sub}`);
-            }
-          } catch {}
-        }
-        continue;
-      }
-      if (hasNativeIndicators(path.join(nm, pkg))) natives.push(pkg);
-    }
-  } catch {}
-  return natives;
-}
-
-function hasNativeIndicators(pkgDir) {
-  try {
-    const pkgJson = path.join(pkgDir, 'package.json');
-    if (fs.existsSync(pkgJson)) {
-      const content = fs.readFileSync(pkgJson, 'utf8');
-      if (/"binary"/.test(content) || /"gypfile"/.test(content)) return true;
-    }
-    if (fs.existsSync(path.join(pkgDir, 'binding.gyp'))) return true;
-    if (fs.existsSync(path.join(pkgDir, 'prebuilds'))) return true;
-  } catch {}
-  return false;
-}
-
-// Auto-select: try engines in order, use the first that succeeds.
-// If all fail, detect native packages and suggest externals.
-async function pickEngine(cfg, absEntry) {
-  const tmpDir = path.join(cfg.projectDir, '.scc-tmp');
-  const errors = [];
-  for (const name of AUTO_ORDER) {
-    try {
-      const engine = ENGINES[name]();
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-      fs.mkdirSync(tmpDir, { recursive: true });
-      await engine.bundle(cfg, absEntry, tmpDir);
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-      return name;
-    } catch (e) {
-      errors.push({ engine: name, message: e.message });
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-      continue;
-    }
-  }
-  const natives = detectNativePackages(cfg.projectDir);
-  let hint = 'All engines failed (esbuild, rollup, webpack).';
-  if (natives.length) {
-    hint += `\n  Detected native/binary packages: ${natives.join(', ')}` +
-            `\n  Try: --external ${natives.join(' --external ')}`;
-  }
-  hint += `\n  First engine error: ${errors[0]?.message?.split('\n')[0] || 'unknown'}`;
-  throw new Error(hint);
-}
-
+// Compress a Node.js project by bundling its entry + all bundled deps
+// into a single minified CJS file under cfg.out.
 async function compressNode(cfg) {
   const { projectDir, entry, out } = cfg;
 
@@ -150,16 +72,9 @@ async function compressNode(cfg) {
     throw new Error(`entry file not found: ${absEntry}`);
   }
 
-  // Auto mode: try engines in order until one succeeds
-  let engineName = cfg.engine;
-  if (engineName === 'auto') {
-    engineName = await pickEngine(cfg, absEntry);
-    cfg = { ...cfg, engine: engineName };
-  }
-
-  const loadEngine = ENGINES[engineName];
+  const loadEngine = ENGINES[cfg.engine];
   if (!loadEngine) {
-    throw new Error(`unknown engine '${engineName}'. Use 'auto', 'esbuild', 'webpack', or 'rollup'.`);
+    throw new Error(`unknown engine '${cfg.engine}'. Use 'esbuild' or 'webpack'.`);
   }
 
   const outDir = path.resolve(projectDir, out);
