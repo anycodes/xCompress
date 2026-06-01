@@ -261,7 +261,7 @@ In a real project, publish/point to the component by name instead of a path:
 ```yaml
 resources:
   hello:
-    component: serverless-code-compressor
+    component: xcompress
     props:
       src: ./code
       runtime: node
@@ -277,7 +277,7 @@ Component properties mirror the CLI options: `src`, `runtime`, `engine`,
 ## Programmatic API
 
 ```js
-const { compress } = require('serverless-code-compressor');
+const { compress } = require('xcompress');
 
 const result = await compress('/path/to/project', {
   runtime: 'node',

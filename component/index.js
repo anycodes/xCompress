@@ -11,7 +11,7 @@ const { renderTable } = require('./src/report');
 //   name: my-app
 //   resources:
 //     fn:
-//       component: serverless-code-compressor   # or a local path
+//       component: xcompress   # or a local path
 //       props:
 //         src: ./code          # project to compress
 //         runtime: node        # node | python
@@ -76,7 +76,7 @@ class Component {
   // `s help` / default
   async help() {
     console.log(
-      'serverless-code-compressor\n' +
+      'xcompress\n' +
         '  s compress   bundle (node) or slim (python) the function code\n' +
         '  props: src, runtime, engine, entry, out, externals, minify, ...'
     );

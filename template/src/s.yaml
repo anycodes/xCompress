@@ -6,7 +6,7 @@ resources:
   {{ functionName }}:
     actions:
       pre-deploy:
-        - component: serverless-code-compressor
+        - component: xcompress
           props:
             runtime: node
             engine: esbuild
