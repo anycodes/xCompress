@@ -1,6 +1,6 @@
 {
   "name": "serverless-code-compressor-component",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Serverless Devs component that compresses function code (bundle for Node, slim for Python) before deploy to cut cold-start time.",
   "main": "index.js",
   "type": "commonjs",

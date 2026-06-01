@@ -7,7 +7,7 @@ name: scc-example
 # use the published name:  component: serverless-code-compressor
 resources:
   hello:
-    component: ../../component
+    component: serverless-code-compressor
     props:
       src: ../node-demo
       runtime: node
