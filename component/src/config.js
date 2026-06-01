@@ -5,7 +5,8 @@ const path = require('path');
 
 const DEFAULTS = {
   runtime: 'node', // 'node' | 'python'
-  engine: 'esbuild', // 'esbuild' | 'webpack' (node only)
+  engine: 'auto', // 'auto' | 'esbuild' | 'webpack' | 'rollup' (node only)
+  level: 'medium', // 'low' | 'medium' | 'high' — compression intensity preset
   entry: null, // auto-detected when null
   out: 'dist', // output directory, relative to project
   externals: [], // modules kept external (not bundled)
@@ -17,9 +18,17 @@ const DEFAULTS = {
   keepNames: false, // preserve fn/class names (safer for reflection-based code)
   handler: 'handler', // export name validated by the post-build self-check
   check: true, // load the bundle in a child process and verify the handler
+  dropConsole: false, // strip console.* calls (high level enables this)
   // python-only
   pyStripSo: false, // also strip debug symbols from .so (needs `strip` on PATH)
   pyPruneMeta: false, // also remove *.dist-info / *.egg-info metadata dirs
+};
+
+// Compression level presets override individual flags
+const LEVEL_PRESETS = {
+  low: { minify: false, keepNames: true, sourcemap: true, dropConsole: false },
+  medium: { minify: true, keepNames: false, sourcemap: false, dropConsole: false },
+  high: { minify: true, keepNames: false, sourcemap: false, dropConsole: true },
 };
 
 const ENTRY_CANDIDATES = {
@@ -43,7 +52,7 @@ function detectEntry(projectDir, runtime) {
 }
 
 // Merge order (lowest → highest precedence):
-// DEFAULTS < scc.config.json < package.json "scc" field < CLI options
+// DEFAULTS < level preset < scc.config.json < package.json "scc" field < CLI options
 function resolveConfig(projectDir, cliOpts = {}) {
   const fileCfg = readJSON(path.join(projectDir, 'scc.config.json')) || {};
   const pkg = readJSON(path.join(projectDir, 'package.json')) || {};
@@ -54,9 +63,20 @@ function resolveConfig(projectDir, cliOpts = {}) {
     if (v !== undefined && v !== null) cfg[k] = v;
   }
 
+  // Apply level preset (individual flags in config/CLI still override)
+  const preset = LEVEL_PRESETS[cfg.level];
+  if (preset) {
+    for (const [k, v] of Object.entries(preset)) {
+      // Only apply preset if user didn't explicitly set this flag
+      if (!(k in fileCfg) && !(k in pkgCfg) && !(k in (cliOpts || {}))) {
+        cfg[k] = v;
+      }
+    }
+  }
+
   if (!cfg.entry) cfg.entry = detectEntry(projectDir, cfg.runtime);
   cfg.projectDir = projectDir;
   return cfg;
 }
 
-module.exports = { resolveConfig, DEFAULTS, ENTRY_CANDIDATES };
+module.exports = { resolveConfig, DEFAULTS, ENTRY_CANDIDATES, LEVEL_PRESETS };

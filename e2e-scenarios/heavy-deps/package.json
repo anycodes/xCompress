@@ -1,0 +1,13 @@
+{
+  "name": "e2e-heavy-deps",
+  "version": "1.0.0",
+  "description": "E2E scenario: Large dependency tree (axios, moment, lodash, cheerio, jsonwebtoken, ioredis)",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "cheerio": "^1.0.0-rc.12",
+    "jsonwebtoken": "^9.0.2",
+    "ioredis": "^5.3.2"
+  }
+}

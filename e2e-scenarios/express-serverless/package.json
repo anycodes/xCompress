@@ -1,0 +1,12 @@
+{
+  "name": "e2e-express-serverless",
+  "version": "1.0.0",
+  "description": "E2E scenario: Express app wrapped with serverless-http (most common Serverless pattern)",
+  "dependencies": {
+    "express": "^4.18.2",
+    "serverless-http": "^3.2.0",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0"
+  }
+}

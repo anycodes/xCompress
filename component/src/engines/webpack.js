@@ -27,7 +27,13 @@ function bundle(cfg, absEntry, outDir) {
   const optimization = { minimize };
   if (minimize) {
     const TerserPlugin = require('terser-webpack-plugin');
-    optimization.minimizer = [new TerserPlugin({ extractComments: false })];
+    const terserOpts = { extractComments: false };
+    if (cfg.dropConsole || cfg.keepNames) {
+      terserOpts.terserOptions = {};
+      if (cfg.dropConsole) terserOpts.terserOptions.compress = { drop_console: true, drop_debugger: true };
+      if (cfg.keepNames) terserOpts.terserOptions.keep_fnames = true;
+    }
+    optimization.minimizer = [new TerserPlugin(terserOpts)];
   }
 
   const compiler = webpack({

@@ -1,0 +1,8 @@
+{
+  "name": "e2e-native-addon",
+  "version": "1.0.0",
+  "description": "E2E scenario: Project with native C++ addon (bcrypt). Demonstrates --external for unbundleable packages.",
+  "dependencies": {
+    "bcrypt": "^5.1.1"
+  }
+}

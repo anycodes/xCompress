@@ -1,0 +1,25 @@
+edition: 3.0.0
+name: scc-e2e-test
+access: default
+
+resources:
+  demo-function:
+    actions:
+      pre-deploy:
+        - component: ../../../component
+          props:
+            src: ./code
+            runtime: node
+            engine: auto
+            out: dist
+            minify: true
+            level: medium
+    component: fc3
+    props:
+      region: cn-hangzhou
+      functionName: scc-e2e-test
+      runtime: nodejs18
+      handler: index.handler
+      code: ./code/dist
+      memorySize: 512
+      timeout: 30
