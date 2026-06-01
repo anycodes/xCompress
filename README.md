@@ -239,7 +239,7 @@ edition: 3.0.0
 name: scc-example
 resources:
   hello:
-    component: ../../component        # local path for the demo
+    component: xcompress
     props:
       src: ../node-demo               # project to compress
       runtime: node                   # node | python

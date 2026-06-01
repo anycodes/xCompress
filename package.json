@@ -1,5 +1,5 @@
 {
-  "name": "serverless-code-compressor",
+  "name": "xcompress",
   "version": "0.1.0",
   "description": "Build-time code compression for serverless functions: bundle dependencies into a single minified file (Node) or slim the deployment package (Python) to cut cold-start time.",
   "bin": {
