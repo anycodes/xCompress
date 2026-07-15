@@ -22,12 +22,12 @@ It ships in two forms over one shared core:
 
 | Nr | Code metadata description | |
 |----|---------------------------|---|
-| C1 | Current code version | 0.1.0 |
-| C2 | Permanent link to code / repository | https://github.com/anycodes/xCompress |
+| C1 | Current code version | 0.1.1 (CLI/core); 0.1.3 (Serverless Devs component) |
+| C2 | Permanent link to code / repository | https://github.com/anycodes/xCompress/releases/tag/v0.1.1 |
 | C3 | Legal Code License | MIT |
 | C4 | Code versioning system used | git |
-| C5 | Software code languages, tools, services used | JavaScript (Node.js ≥ 16), esbuild, webpack; targets Node.js and Python FaaS runtimes |
-| C6 | Compilation requirements, operating environments, dependencies | Node.js ≥ 16; `esbuild` (required), `webpack` + `webpack-node-externals` (optional); `python3` + `strip` (optional, Python slimmer) |
+| C5 | Software code languages, tools, services used | JavaScript (Node.js >= 18), esbuild, Rollup, webpack; targets Node.js and Python FaaS runtimes |
+| C6 | Compilation requirements, operating environments, dependencies | Node.js >= 18; exact versions are locked in `package-lock.json`: `esbuild` 0.21.5, `rollup` 4.61.0, `webpack` 5.108.4 and their declared plugins; `python3` + `strip` are optional for Python slimming |
 | C7 | Link to developer documentation / manual | This README |
 | C8 | Support | https://github.com/anycodes/xCompress/issues |
 
@@ -63,11 +63,16 @@ The Python win therefore depends on how much deadweight the package carries.
 ## Install
 
 ```bash
-npm install                 # installs esbuild (+ optional webpack)
+git clone https://github.com/anycodes/xCompress.git
+cd xCompress
+git checkout v0.1.1
+npm ci                      # installs the exact public-registry lockfile
 npm link                    # optional: exposes `scc` on your PATH
 ```
 
-Requires Node.js ≥ 16. The Python slimmer additionally needs `python3` on PATH.
+Requires Node.js >= 18 and npm >= 8. The Python slimmer additionally needs
+`python3` on PATH. Library consumers can install the published package with
+`npm install xcompress@0.1.1` after release.
 
 ## CLI usage
 
@@ -78,7 +83,7 @@ scc [project-dir] [options]
 | Option | Description |
 |--------|-------------|
 | `--runtime <node\|python>` | Runtime to compress (default: `node`) |
-| `--engine <esbuild\|webpack>` | Bundler for the node runtime (default: `esbuild`) |
+| `--engine <auto\|esbuild\|rollup\|webpack>` | Bundler for the node runtime (default: `auto`, in that order) |
 | `--entry <file>` | Entry file (auto-detected if omitted) |
 | `--out <dir>` | Output directory (default: `dist`) |
 | `--external <name>` | Keep a module external, not bundled (repeatable) |
@@ -356,15 +361,27 @@ on the platform, region, configured memory, and network.
 npm test
 ```
 
-30 tests covering reporting math, configuration precedence/auto-detection, real
-Node bundling with **both engines** (esbuild and webpack: multi-file → one file,
-handler callable), engine options (externals kept as runtime `require`,
+31 tests covering reporting math, configuration precedence/auto-detection, real
+Node bundling with **all three engines** (esbuild, Rollup, and webpack:
+multi-file -> one bundle, handler callable), engine options (externals kept as runtime `require`,
 minification actually shrinks output, `--sourcemap` emission), the correctness
 safeguards (dynamic-require / `__dirname` warnings, asset copying, missing-asset
 warning, native `.node` copy, self-check pass/fail, helpful error on missing
 entry), the static-analysis helpers (static vs. dynamic specifier
 classification, `node_modules`/ignore-list scoping), and the Python slimmer
 (prunes caches/tests, keeps real code including `.so`, metadata gated by flag).
+
+Five locked end-to-end scenarios cover Express/serverless-http, a large
+dependency graph, TypeScript, a native addon kept external, and direct
+invocation through the Serverless Devs component adapter:
+
+```bash
+npm run test:e2e
+```
+
+Run the complete release check with `npm run verify`. See
+[`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) for clean-clone verification and
+the expected result counts.
 
 ## License
 

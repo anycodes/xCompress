@@ -11,16 +11,17 @@ dependency patterns.
 | `heavy-deps/` | axios + moment + lodash + cheerio + jsonwebtoken + ioredis | Large dependency tree (2800+ files, 10+ MB) |
 | `typescript/` | TypeScript function with zod + nanoid | TS compilation via esbuild (no separate tsc step) |
 | `native-addon/` | bcrypt (C++ native addon via node-pre-gyp) | Unbundleable native module; tests `--external` and smart detection |
+| `serverless-devs-integration/` | Serverless Devs component invocation | Adapter config forwarding and callable artifact |
 
 ## Running
 
 ```bash
-# Run all scenarios (installs deps, compresses, verifies handlers):
-node e2e-scenarios/run-all.js
+# Run all scenarios from the repository root:
+npm run test:e2e
 
 # Or run one scenario manually:
 cd e2e-scenarios/express-serverless
-npm install
+npm ci --omit=dev
 scc . --handler handler
 node dist/index.js  # verify it loads
 ```
@@ -33,16 +34,19 @@ node dist/index.js  # verify it loads
 | heavy-deps | ~2800 | 1 | ~83% | Yes |
 | typescript | ~760 | 1 | ~99% | Yes |
 | native-addon | ~500 | 1 | (with `--external bcrypt`) | Yes (requires bcrypt in runtime) |
+| serverless-devs-component | ~1500 | 1 | dependency-dependent | Yes |
 
 ## What this tests
 
-- **Engine auto-fallback**: `heavy-deps` and `express-serverless` use `engine: auto`
+- **Engine auto selection**: `heavy-deps`, `express-serverless`, and the component use `engine: auto`
 - **TypeScript support**: esbuild compiles `.ts` natively without a separate `tsc` step
-- **Native addon detection**: `native-addon` tests that all engines fail gracefully
-  and the tool suggests the correct `--external` flags
-- **Self-check with dry-run**: each scenario verifies the handler is not just
-  importable but actually callable with an empty event
-- **Tree shaking**: output sizes confirm unused library code is dropped
+- **Native addon boundary**: `native-addon` keeps `bcrypt` external and checks
+  that the remaining bundle loads; the external module must still be shipped
+  for an application-level invocation
+- **Artifact invocation**: JavaScript/TypeScript artifacts are loaded and
+  called where their dependencies are self-contained
+- **Component integration**: the adapter forwards props into the shared core
+  and produces a callable deployment artifact
 
 ## Adding a scenario
 

@@ -127,6 +127,21 @@ test('compress node (webpack engine) also bundles into a single file', async () 
   fs.rmSync(d, { recursive: true, force: true });
 });
 
+test('compress node (rollup engine) also produces a callable bundle', async () => {
+  const d = tmpdir('scc-rollup-');
+  fs.writeFileSync(path.join(d, 'lib.js'), 'module.exports = { add: (a, b) => a + b };');
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "const { add } = require('./lib');\nexports.handler = () => ({ sum: add(2, 3) });"
+  );
+  const result = await compress(d, { runtime: 'node', engine: 'rollup', out: 'dist' });
+  assert.strictEqual(result.engine, 'rollup');
+  assert.ok(fs.existsSync(result.outfile), 'outfile exists');
+  const mod = require(result.outfile);
+  assert.deepStrictEqual(mod.handler(), { sum: 5 }, 'bundled handler works');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
 test('compress node warns on dynamic require (would break at runtime)', async () => {
   const d = tmpdir('scc-dyn-');
   fs.mkdirSync(path.join(d, 'plugins'));

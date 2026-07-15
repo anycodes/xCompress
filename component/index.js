@@ -15,7 +15,7 @@ const { renderTable } = require('./src/report');
 //       props:
 //         src: ./code          # project to compress
 //         runtime: node        # node | python
-//         engine: esbuild      # esbuild | webpack (node only)
+//         engine: esbuild      # auto | esbuild | rollup | webpack (node only)
 //         out: dist
 //         externals: [aws-sdk]
 //         minify: true
@@ -28,11 +28,16 @@ const PROP_KEYS = [
   'entry',
   'out',
   'externals',
+  'assets',
   'platform',
   'nodeTarget',
+  'level',
   'minify',
   'sourcemap',
   'keepNames',
+  'handler',
+  'check',
+  'dropConsole',
   'pyStripSo',
   'pyPruneMeta',
 ];

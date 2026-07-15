@@ -1,6 +1,6 @@
 {
   "name": "xcompress-component",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Serverless Devs component that compresses function code (bundle for Node, slim for Python) before deploy to cut cold-start time.",
   "main": "index.js",
   "type": "commonjs",
@@ -11,8 +11,19 @@
     "cold-start",
     "code-compression"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
-    "esbuild": "^0.20.0"
+    "esbuild": "0.21.5"
+  },
+  "optionalDependencies": {
+    "@rollup/plugin-commonjs": "29.0.3",
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "@rollup/plugin-terser": "0.4.4",
+    "rollup": "4.61.0",
+    "terser-webpack-plugin": "5.3.17",
+    "webpack": "5.108.4"
   },
   "license": "MIT",
   "author": "anycodes"

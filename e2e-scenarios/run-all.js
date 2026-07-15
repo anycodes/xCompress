@@ -12,6 +12,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { compress } = require('../src/index');
+const Component = require('../component');
 
 const SCENARIOS = [
   {
@@ -38,23 +39,39 @@ const SCENARIOS = [
     opts: { runtime: 'node', handler: 'handler', engine: 'esbuild', externals: ['bcrypt'] },
     verify: null, // can't verify without bcrypt in the output dir
   },
+  {
+    name: 'serverless-devs-component',
+    dir: path.join(__dirname, 'serverless-devs-integration', 'code'),
+    componentCwd: path.join(__dirname, 'serverless-devs-integration'),
+    opts: { runtime: 'node', handler: 'handler', engine: 'auto', out: 'dist' },
+    verify: (mod) => mod.handler({}),
+  },
 ];
 
 async function run() {
   let passed = 0;
   let failed = 0;
 
+  process.stdout.write('Installing locked Serverless Devs component dependencies...\n');
+  execSync('npm ci --omit=dev --no-audit --no-fund', {
+    cwd: path.join(__dirname, '..', 'component'),
+    stdio: 'ignore',
+  });
+
   for (const s of SCENARIOS) {
     process.stdout.write(`\n[${'='.repeat(60)}]\n  ${s.name}\n`);
 
-    // Install deps if node_modules missing
-    if (!fs.existsSync(path.join(s.dir, 'node_modules'))) {
-      process.stdout.write('  Installing dependencies...\n');
-      execSync('npm install --production', { cwd: s.dir, stdio: 'ignore' });
-    }
+    // Recreate dependencies from the committed lockfile for every run.
+    process.stdout.write('  Installing locked production dependencies...\n');
+    execSync('npm ci --omit=dev --no-audit --no-fund', { cwd: s.dir, stdio: 'ignore' });
 
     try {
-      const result = await compress(s.dir, { ...s.opts, out: 'dist' });
+      const result = s.componentCwd
+        ? await new Component().compress({
+            cwd: s.componentCwd,
+            props: { src: './code', ...s.opts },
+          })
+        : await compress(s.dir, { ...s.opts, out: 'dist' });
       const before = result.report.before;
       const after = result.report.after;
       process.stdout.write(

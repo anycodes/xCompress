@@ -12,7 +12,7 @@ Usage:
 
 Options:
   --runtime <node|python>   Runtime to compress (default: node)
-  --engine <esbuild|webpack>  Bundler for node runtime (default: esbuild)
+  --engine <auto|esbuild|rollup|webpack>  Bundler (default: auto)
   --entry <file>            Entry file (auto-detected if omitted)
   --out <dir>               Output directory (default: dist)
   --external <name>         Keep a module external (repeatable)
@@ -30,7 +30,7 @@ Options:
   -h, --help                Show this help
 
 Examples:
-  scc                       Compress ./ as a node project with esbuild
+  scc                       Compress ./ as a node project with auto fallback
   scc ./fn --engine webpack
   scc ./fn --runtime python --out slim
 `;
