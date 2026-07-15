@@ -22,7 +22,7 @@ npm run verify
 
 Expected results:
 
-- 31 unit/integration tests pass.
+- 32 unit/integration tests pass.
 - 5 end-to-end scenarios pass, including the Serverless Devs component adapter.
 - The generated `dist/` directories are removed by the scenario runner.
 

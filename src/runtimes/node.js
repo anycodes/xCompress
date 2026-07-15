@@ -223,6 +223,8 @@ async function compressNode(cfg) {
     check = selfCheck(outfile, cfg.handler || 'handler');
     if (!check.ok) {
       warnings.push(`self-check failed: export '${check.handler}' — ${check.reason}`);
+    } else if (check.invokeWarning) {
+      warnings.push(`self-check warning: ${check.invokeWarning}`);
     }
   }
 

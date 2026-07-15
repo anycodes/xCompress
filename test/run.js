@@ -231,6 +231,22 @@ test('self-check fails (with warning) when the handler export is missing', async
   fs.rmSync(d, { recursive: true, force: true });
 });
 
+test('self-check surfaces an empty-event invocation error as a warning', async () => {
+  const d = tmpdir('scc-check-invoke-');
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "exports.handler = (event) => { if (!event.required) throw new Error('required missing'); };"
+  );
+  const result = await compress(d, { runtime: 'node', out: 'dist' });
+  assert.ok(result.check && result.check.ok, 'artifact still loads and exports the handler');
+  assert.ok(result.check.invokeWarning, 'dry-run warning retained in check result');
+  assert.ok(
+    result.warnings.some((w) => /self-check warning.*required missing/.test(w)),
+    'dry-run warning surfaced to callers'
+  );
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
 test('self-check honors a custom handler name and can be disabled', async () => {
   const d = tmpdir('scc-check-name-');
   fs.writeFileSync(path.join(d, 'index.js'), 'exports.main = () => 1;');

@@ -9,6 +9,7 @@
   Serverless Devs component integration scenario.
 - Forward all documented component options and align the publish schema.
 - Add a Rollup integration test and reproducibility documentation.
+- Surface empty-event dry-run failures as user-visible warnings.
 - Align the supported Node.js version with the pinned dependency chain.
 
 The transformation logic is unchanged from 0.1.0; this release repairs the

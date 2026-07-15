@@ -361,7 +361,7 @@ on the platform, region, configured memory, and network.
 npm test
 ```
 
-31 tests covering reporting math, configuration precedence/auto-detection, real
+32 tests covering reporting math, configuration precedence/auto-detection, real
 Node bundling with **all three engines** (esbuild, Rollup, and webpack:
 multi-file -> one bundle, handler callable), engine options (externals kept as runtime `require`,
 minification actually shrinks output, `--sourcemap` emission), the correctness
