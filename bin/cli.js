@@ -25,6 +25,7 @@ Options:
   --drop-console            Remove console calls (unsafe unless functionally tested)
   --handler <name>          Export name to validate (node, default: handler)
   --no-check                Skip the post-build artifact self-check (node)
+  --invoke-check            Also invoke the handler with an empty event (node)
   --py-strip-so             (python) strip debug symbols from .so files
   --py-prune-meta           (python) remove *.dist-info / *.egg-info dirs
   --json                    Print the report as JSON
@@ -92,6 +93,9 @@ function parseArgs(argv) {
         break;
       case '--no-check':
         opts.check = false;
+        break;
+      case '--invoke-check':
+        opts.invokeCheck = true;
         break;
       case '--py-strip-so':
         opts.pyStripSo = true;
@@ -162,7 +166,9 @@ async function main() {
         ? `self-check: FAILED — export '${c.handler}': ${c.reason}\n\n`
         : c.invoked
           ? `self-check: export '${c.handler}' is callable; empty-event invocation OK\n\n`
-          : `self-check: export '${c.handler}' is callable; invocation warning\n\n`
+          : c.invokeWarning
+            ? `self-check: export '${c.handler}' is callable; invocation warning\n\n`
+            : `self-check: isolated artifact loads and export '${c.handler}' is callable\n\n`
     );
   }
 

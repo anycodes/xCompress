@@ -29,7 +29,7 @@ function bundle(cfg, absEntry, outDir) {
     external: cfg.externals || [],
     outfile,
     logLevel: 'silent',
-    legalComments: 'none',
+    legalComments: 'eof',
     loader: { '.node': 'copy' },
   };
   if (cfg.dropConsole) {

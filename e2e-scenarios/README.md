@@ -10,7 +10,7 @@ dependency patterns.
 | `express-serverless/` | Express app wrapped with serverless-http | Most common FaaS pattern; middleware stack |
 | `heavy-deps/` | axios + moment + lodash + cheerio + jsonwebtoken + ioredis | Large dependency tree (2800+ files, 10+ MB) |
 | `typescript/` | TypeScript function with zod + nanoid | TS compilation via esbuild (no separate tsc step) |
-| `native-addon/` | bcrypt (C++ native addon via node-pre-gyp) | Unbundleable native module; tests `--external` and smart detection |
+| `native-addon/` | bcrypt (C++ native addon via node-pre-gyp) | Native module kept external to the bundle and packaged as an asset |
 | `serverless-devs-integration/` | Serverless Devs component invocation | Adapter config forwarding and callable artifact |
 
 ## Running
@@ -33,19 +33,18 @@ node dist/index.js  # verify it loads
 | express-serverless | ~680 | 1 | ~66% | Yes |
 | heavy-deps | ~2800 | 1 | ~83% | Yes |
 | typescript | ~760 | 1 | ~99% | Yes |
-| native-addon | ~500 | 1 | (with `--external bcrypt`) | Yes (requires bcrypt in runtime) |
+| native-addon | ~500 | ~500 | No reduction expected when all runtime dependencies are copied | Yes |
 | serverless-devs-component | ~1500 | 1 | dependency-dependent | Yes |
 
 ## What this tests
 
 - **Engine auto selection**: `heavy-deps`, `express-serverless`, and the component use `engine: auto`
 - **TypeScript support**: esbuild compiles `.ts` natively without a separate `tsc` step
-- **Native addon boundary**: `native-addon` keeps `bcrypt` external and checks
-  that the remaining bundle loads; the external module must still be shipped
-  for an application-level invocation
-- **Artifact invocation**: JavaScript/TypeScript artifacts are loaded and
-  called where their dependencies are self-contained
-- **Component integration**: the adapter forwards props into the shared core
+- **Native addon boundary**: `native-addon` keeps `bcrypt` external, packages
+  `node_modules`, then loads and invokes the result outside the source tree
+- **Artifact invocation**: every JavaScript/TypeScript artifact is copied to a
+  temporary isolated directory before it is loaded and called
+- **Component integration**: the adapter forwards props into its synchronized core
   and produces a callable deployment artifact
 
 ## Adding a scenario

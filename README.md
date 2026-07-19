@@ -9,10 +9,11 @@ initialize on a cold start:
 - **Python** — slim the deployment package by removing bytecode caches, test
   suites, and (optionally) `*.dist-info` / `*.egg-info` metadata.
 
-Fewer and smaller files mean less to download, unzip, and load when the
-platform provisions a new instance, which reduces cold-start latency.
+Fewer and smaller files can reduce artifact acquisition and module-loading
+work when a platform provisions a new instance. The effect on end-to-end
+cold-start latency remains workload- and provider-dependent.
 
-It ships in two forms over one shared core:
+It ships in two forms over a synchronized implementation:
 
 - a **CLI** (`scc`), and
 - a **Serverless Devs component** (`s compress`) that drops into an existing
@@ -22,8 +23,8 @@ It ships in two forms over one shared core:
 
 | Nr | Code metadata description | |
 |----|---------------------------|---|
-| C1 | Current code version | 0.1.2 (CLI/core); 0.1.4 (Serverless Devs component) |
-| C2 | Permanent link to code / repository | https://github.com/anycodes/xCompress/releases/tag/v0.1.2 |
+| C1 | Current code version | 0.1.3 (CLI/core); 0.1.5 (Serverless Devs component) |
+| C2 | Permanent link to code / repository | https://github.com/anycodes/xCompress/releases/tag/v0.1.3 |
 | C3 | Legal Code License | MIT |
 | C4 | Code versioning system used | git |
 | C5 | Software code languages, tools, services used | JavaScript (Node.js >= 18), esbuild, Rollup, webpack; targets Node.js and Python FaaS runtimes |
@@ -39,9 +40,9 @@ plain source. The size reduction comes from concrete, named techniques:
 **Node.js**
 
 1. **Dependency bundling** — the entry's full `require`/`import` graph is
-   inlined into one file, eliminating the hundreds/thousands of `node_modules`
-   files and the per-file module-resolution cost at load time. *(This is the
-   dominant win: file count typically drops from 1000+ to 1.)*
+   inlined into one file, eliminating many `node_modules` files and shortening
+   the module-resolution path. The relative contributions of bytes, file count,
+   and graph shape depend on the application.
 2. **Minification** — whitespace removal, identifier renaming, dead-code
    elimination.
 3. **Tree-shaking** — unused exports are dropped from the bundle.
@@ -65,14 +66,14 @@ The Python win therefore depends on how much deadweight the package carries.
 ```bash
 git clone https://github.com/anycodes/xCompress.git
 cd xCompress
-git checkout v0.1.2
+git checkout v0.1.3
 npm ci                      # installs the exact public-registry lockfile
 npm link                    # optional: exposes `scc` on your PATH
 ```
 
 Requires Node.js >= 18 and npm >= 8. The Python slimmer additionally needs
 `python3` on PATH. Library consumers can install the published package with
-`npm install xcompress@0.1.2` after release.
+`npm install xcompress@0.1.3` after release.
 
 ## CLI usage
 
@@ -96,6 +97,7 @@ scc [project-dir] [options]
 | `--drop-console` | Explicitly remove console calls; may remove argument side effects and requires functional testing |
 | `--handler <name>` | Export name validated by the self-check (default: `handler`) |
 | `--no-check` | Skip the post-build artifact self-check |
+| `--invoke-check` | Also invoke the handler with an empty event |
 | `--py-strip-so` | (python) strip debug symbols from `.so` files |
 | `--py-prune-meta` | (python) also remove `*.dist-info` / `*.egg-info` |
 | `--json` | Print the report as JSON |
@@ -107,11 +109,14 @@ Entry auto-detection looks for `index.js`/`app.js`/`handler.js`/`main.js`
 
 `scc` tries hard not to silently produce a broken bundle:
 
-- **Self-check** — after a Node build it loads the artifact in an isolated
-  child process, verifies the handler export is callable, and attempts an
-  empty-event invocation for synchronous, Promise-based, and callback-style
-  handlers. Input-dependent failures remain warnings rather than equivalence
-  guarantees.
+- **Self-check** — after a Node build it copies the output to a temporary
+  directory, loads that isolated artifact, and verifies the handler export is
+  callable. A load failure or missing handler stops the build. `--invoke-check`
+  additionally tries an empty event for synchronous, Promise-based, and
+  callback-style handlers; input-dependent invocation failures are warnings.
+- **Contained paths** — output and asset paths must remain within the project;
+  root, parent, outside, and symlink-escape destinations are rejected before
+  deletion or copying.
 - **Dynamic `require`/`import` warning** — bundlers leave non-static calls like
   `require('./plugins/' + name)` as-is and do **not** bundle the target, so the
   artifact would break at runtime. `scc` scans your source and warns.
@@ -186,7 +191,7 @@ scc: node / esbuild  entry=index.js  ->  dist/index.js
 Size    2.03 MB   79.50 KB   -96.18%
 Files   1532      1          -99.93%
 
-self-check: export 'handler' is callable  OK
+self-check: isolated artifact loads and export 'handler' is callable
 ```
 
 The bundled `dist/index.js` still exports `.handler`. Use `--engine webpack`
@@ -280,7 +285,8 @@ resources:
 
 Component properties mirror the CLI options: `src`, `runtime`, `engine`,
 `entry`, `out`, `externals`, `assets`, `minify`, `sourcemap`, `keepNames`,
-`platform`, `nodeTarget`, `pyStripSo`, `pyPruneMeta`.
+`handler`, `check`, `invokeCheck`, `platform`, `nodeTarget`, `pyStripSo`,
+`pyPruneMeta`.
 
 ## Programmatic API
 
@@ -296,7 +302,7 @@ const result = await compress('/path/to/project', {
 });
 // result = { runtime, engine, entry, outDir, outfile, warnings, check, report }
 // result.report = { before, after, sizeReduction, fileReduction }
-// result.check  = { ok, handler, reason? }   (node only)
+// result.check  = { ok, handler, invoked, invokeWarning? }   (node only)
 ```
 
 ## Architecture
@@ -308,14 +314,16 @@ src/index.js            compress(): config + runtime dispatch
 src/config.js           layered configuration + entry auto-detection
 src/report.js           filesystem measurement + before/after reporting
 src/detect.js           static scan: dynamic require + __dirname usage
+src/safety.js           contained output/asset path validation
 src/runtimes/node.js    node: measure -> bundle -> assets -> self-check -> measure
 src/runtimes/python.js  python: copy -> prune -> measure
 src/engines/esbuild.js  single-file bundle via esbuild (+ .node copy loader)
 src/engines/webpack.js  single-file bundle via webpack
 ```
 
-The CLI and the Serverless Devs component are thin adapters over the same
-`compress()` core, so both forms produce identical artifacts and reports.
+The CLI and Serverless Devs distributions contain synchronized copies of the
+same core implementation. Release verification exercises the component path to
+prevent adapter or core-copy drift.
 
 ## Disclaimer and expectations
 
@@ -328,9 +336,8 @@ shown in the examples (e.g. ≈ −96 % for the Node demo, ≈ −75 % for the P
 demo) were measured for *those specific projects on one machine*. What you
 actually get depends on several factors and will differ:
 
-- **Your dependency tree.** The dominant Node win is collapsing `node_modules`
-  into a single file, so a project with few or already-small dependencies has
-  proportionally less to gain.
+- **Your dependency tree.** A project with few or already-small dependencies
+  generally has less acquisition and module-loading work to remove.
 - **Runtime and package contents.** The Python slimmer only removes deadweight
   (`__pycache__`, `*.pyc/pyo`, tests, optional metadata); it does **no** bundling
   or minification, so a package that carries little deadweight shrinks little.
@@ -357,7 +364,10 @@ on the platform, region, configured memory, and network.
   declared via `--asset` / `assets`.
 - **Native `.node`** binaries are platform/arch specific: build on the deploy
   target's OS/arch (e.g. linux x64). The webpack engine does not handle `.node`
-  (use the default esbuild engine, or keep the module `--external`).
+  (use the default esbuild engine, or keep the module `--external`). Every
+  external must be provider-supplied or packaged explicitly, for example with
+  `--asset node_modules`; the isolated self-check rejects missing top-level
+  externals.
 - The Python slimmer does not minify or tree-shake; gains depend on deadweight.
 - `scc` measures package size/file count, not end-to-end cold-start latency.
 
@@ -367,19 +377,21 @@ on the platform, region, configured memory, and network.
 npm test
 ```
 
-32 tests covering reporting math, configuration precedence/auto-detection, real
+38 tests covering reporting math, path-containment safety, license-notice
+preservation, configuration precedence/auto-detection, real
 Node bundling with **all three engines** (esbuild, Rollup, and webpack:
 multi-file -> one bundle, handler callable), engine options (externals kept as runtime `require`,
 minification actually shrinks output, `--sourcemap` emission), the correctness
 safeguards (dynamic-require / `__dirname` warnings, asset copying, missing-asset
-warning, native `.node` copy, self-check pass/fail, helpful error on missing
+warning, native `.node` copy, isolated self-check pass/fail, helpful error on missing
 entry), the static-analysis helpers (static vs. dynamic specifier
 classification, `node_modules`/ignore-list scoping), and the Python slimmer
 (prunes caches/tests, keeps real code including `.so`, metadata gated by flag).
 
 Five locked end-to-end scenarios cover Express/serverless-http, a large
-dependency graph, TypeScript, a native addon kept external, and direct
-invocation through the Serverless Devs component adapter:
+dependency graph, TypeScript, a packaged native addon kept external to the
+bundle, and direct invocation through the Serverless Devs component adapter.
+Each artifact is copied outside its source tree before handler invocation:
 
 ```bash
 npm run test:e2e

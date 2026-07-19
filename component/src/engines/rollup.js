@@ -23,7 +23,7 @@ async function bundle(cfg, absEntry, outDir) {
     let terser;
     try {
       terser = require('@rollup/plugin-terser');
-      const terserOpts = {};
+      const terserOpts = { format: { comments: /^!|@preserve|@license|@cc_on/i } };
       if (cfg.dropConsole) terserOpts.compress = { drop_console: true };
       if (cfg.keepNames) terserOpts.keep_fnames = true;
       plugins.push(terser(terserOpts));

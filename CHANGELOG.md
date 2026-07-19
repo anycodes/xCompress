@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.3 - 2026-07-19
+
+- Reject root, parent, outside-project, and symlink-escape output or asset paths
+  before destructive filesystem operations.
+- Validate a copied artifact outside the source tree; missing top-level
+  externals or handler exports now fail the build.
+- Make empty-event invocation explicit through `--invoke-check` and retain it
+  as a warning-only domain probe.
+- Package and invoke the native-addon end-to-end artifact instead of resolving
+  dependencies from its source tree.
+- Preserve third-party license comments for esbuild, webpack, and Rollup
+  minification.
+- Expand the regression suite to 38 tests and keep five isolated end-to-end
+  scenarios.
+
 ## 0.1.2 - 2026-07-19
 
 - Keep console calls by default in every optimisation preset; removing them is

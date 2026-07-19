@@ -1,4 +1,4 @@
-# Reproducing xCompress 0.1.2
+# Reproducing xCompress 0.1.3
 
 ## Environment
 
@@ -15,15 +15,16 @@ use `https://registry.npmjs.org/`; no private registry is required.
 ```bash
 git clone https://github.com/anycodes/xCompress.git
 cd xCompress
-git checkout v0.1.2
+git checkout v0.1.3
 npm ci --registry=https://registry.npmjs.org
 npm run verify
 ```
 
 Expected results:
 
-- 35 unit/integration tests pass.
-- 5 end-to-end scenarios pass, including the Serverless Devs component adapter.
+- 38 unit/integration tests pass.
+- 5 isolated end-to-end artifacts pass, including a packaged native dependency
+  and the Serverless Devs component adapter.
 - The generated `dist/` directories are removed by the scenario runner.
 
 The end-to-end runner executes `npm ci --omit=dev` inside every scenario, so
@@ -42,9 +43,10 @@ uses esbuild 0.28.1 after dependency-security maintenance.
 
 ## Correctness boundary
 
-Passing the built-in self-check confirms only that the generated module loads
-and exports a callable handler. It does not prove application-level semantic
-equivalence. Projects using dynamic module paths, runtime filesystem assets,
-native extensions, reflection-sensitive names, or bundler plugins must use the
-documented externals/assets/keep-names options and run their own functional and
-platform tests before deployment.
+Passing the built-in self-check confirms that a copy outside the source tree
+loads without undeclared top-level dependencies and exports a callable handler.
+`--invoke-check` can additionally exercise an empty event. Neither check proves
+application-level semantic equivalence. Projects using dynamic module paths,
+runtime filesystem assets, native extensions, reflection-sensitive names, or
+bundler plugins must use the documented externals/assets/keep-names options and
+run domain-specific functional and platform tests before deployment.

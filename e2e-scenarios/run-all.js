@@ -11,6 +11,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { compress } = require('../src/index');
 const Component = require('../component');
 
@@ -18,7 +19,7 @@ const SCENARIOS = [
   {
     name: 'express-serverless',
     dir: path.join(__dirname, 'express-serverless'),
-    opts: { runtime: 'node', handler: 'handler', engine: 'auto' },
+    opts: { runtime: 'node', handler: 'handler', engine: 'auto', invokeCheck: true },
     verify: (mod) => mod.handler({ httpMethod: 'GET', path: '/' }),
   },
   {
@@ -30,20 +31,27 @@ const SCENARIOS = [
   {
     name: 'typescript',
     dir: path.join(__dirname, 'typescript'),
-    opts: { runtime: 'node', handler: 'handler', engine: 'esbuild', entry: 'index.ts' },
+    opts: { runtime: 'node', handler: 'handler', engine: 'esbuild', entry: 'index.ts', invokeCheck: true },
     verify: (mod) => mod.handler({ name: 'Reviewer', count: 2 }),
   },
   {
-    name: 'native-addon (with --external)',
+    name: 'native-addon (external plus packaged dependencies)',
     dir: path.join(__dirname, 'native-addon'),
-    opts: { runtime: 'node', handler: 'handler', engine: 'esbuild', externals: ['bcrypt'] },
-    verify: null, // can't verify without bcrypt in the output dir
+    opts: {
+      runtime: 'node',
+      handler: 'handler',
+      engine: 'esbuild',
+      externals: ['bcrypt'],
+      assets: ['node_modules'],
+      invokeCheck: true,
+    },
+    verify: (mod) => mod.handler({ password: 'artifact-check' }),
   },
   {
     name: 'serverless-devs-component',
     dir: path.join(__dirname, 'serverless-devs-integration', 'code'),
     componentCwd: path.join(__dirname, 'serverless-devs-integration'),
-    opts: { runtime: 'node', handler: 'handler', engine: 'auto', out: 'dist' },
+    opts: { runtime: 'node', handler: 'handler', engine: 'auto', out: 'dist', invokeCheck: true },
     verify: (mod) => mod.handler({}),
   },
 ];
@@ -74,6 +82,8 @@ async function run() {
         : await compress(s.dir, { ...s.opts, out: 'dist' });
       const before = result.report.before;
       const after = result.report.after;
+      if (!result.check || !result.check.ok) throw new Error('isolated post-build self-check did not pass');
+      if (s.opts.invokeCheck && !result.check.invoked) throw new Error('requested empty-event invocation did not pass');
       process.stdout.write(
         `  Engine: ${result.engine}\n` +
         `  Before: ${before.files} files, ${(before.bytes / 1024 / 1024).toFixed(2)} MB\n` +
@@ -87,9 +97,16 @@ async function run() {
       }
 
       if (s.verify) {
-        const mod = require(path.join(s.dir, 'dist', 'index.js'));
-        const output = await s.verify(mod);
-        process.stdout.write(`  Handler invoke: OK (${JSON.stringify(output).slice(0, 80)}...)\n`);
+        const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-e2e-artifact-'));
+        const artifactDir = path.join(tmpRoot, 'artifact');
+        fs.cpSync(path.join(s.dir, 'dist'), artifactDir, { recursive: true });
+        try {
+          const mod = require(path.join(artifactDir, 'index.js'));
+          const output = await s.verify(mod);
+          process.stdout.write(`  Isolated handler invoke: OK (${JSON.stringify(output).slice(0, 80)}...)\n`);
+        } finally {
+          fs.rmSync(tmpRoot, { recursive: true, force: true });
+        }
       }
 
       process.stdout.write('  RESULT: PASS\n');

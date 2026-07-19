@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { measure, buildReport } = require('../report');
+const { resolveSafeOutputDir } = require('../safety');
 
 // Directories that are pure deadweight in a deployment package.
 const PRUNE_DIRS = new Set([
@@ -90,18 +91,19 @@ function prune(root, opts) {
 // test suites, and (optionally) metadata dirs and .so debug symbols.
 async function compressPython(cfg) {
   const { projectDir, out } = cfg;
-  const outDir = path.resolve(projectDir, out);
+  const rootDir = fs.realpathSync(projectDir);
+  const outDir = resolveSafeOutputDir(rootDir, out);
   const outBase = path.basename(outDir);
-  const skip = new Set([outDir, path.resolve(projectDir, '.git'), path.resolve(projectDir, '.scc-tmp')]);
+  const skip = new Set([outDir, path.resolve(rootDir, '.git'), path.resolve(rootDir, '.scc-tmp')]);
 
-  const before = measure(projectDir, { ignore: [outBase, '.git', '.scc-tmp'] });
+  const before = measure(rootDir, { ignore: [outBase, '.git', '.scc-tmp'] });
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
 
   // Copy the package into the output dir, excluding the output dir itself
   // and VCS/tmp. Symlinks are not dereferenced.
-  copyInto(projectDir, outDir, skip);
+  copyInto(rootDir, outDir, skip);
 
   prune(outDir, { pruneMeta: !!cfg.pyPruneMeta, stripSo: !!cfg.pyStripSo });
 

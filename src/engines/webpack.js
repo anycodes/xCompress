@@ -21,15 +21,16 @@ function bundle(cfg, absEntry, outDir) {
 
   const minimize = cfg.minify !== false;
 
-  // By default webpack's terser extracts license banners into a separate
-  // *.LICENSE.txt, which would defeat the single-file goal. Suppress it so
-  // the result is one file, matching the esbuild engine.
+  // Keep license/preserve comments inline so the artifact remains one file
+  // without discarding third-party notices.
   const optimization = { minimize };
   if (minimize) {
     const TerserPlugin = require('terser-webpack-plugin');
-    const terserOpts = { extractComments: false };
+    const terserOpts = {
+      extractComments: false,
+      terserOptions: { format: { comments: /^!|@preserve|@license|@cc_on/i } },
+    };
     if (cfg.dropConsole || cfg.keepNames) {
-      terserOpts.terserOptions = {};
       if (cfg.dropConsole) terserOpts.terserOptions.compress = { drop_console: true, drop_debugger: true };
       if (cfg.keepNames) terserOpts.terserOptions.keep_fnames = true;
     }

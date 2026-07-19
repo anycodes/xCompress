@@ -1,20 +1,24 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { measure, buildReport } = require('../report');
 const { scanDynamicRequire, scanDirnameUsage } = require('../detect');
+const { resolveSafeOutputDir, resolveSafeAssetPath } = require('../safety');
 
 // Load the bundle in an isolated child process and confirm the handler export
 // is actually a function. This is the artifact's smoke test: it proves the
 // produced file is loadable and exposes the entry point, not just smaller.
-function selfCheck(outfile, name) {
-  // Phase 1: verify the handler export exists and is callable
-  // Phase 2: attempt an empty-event invocation. Passing a callback as the
-  // third argument also covers common Node.js FaaS callback handlers.
-  const checkCode =
-    `const m = require(${JSON.stringify(outfile)});` +
+function selfCheck(outDir, outfile, name, invoke) {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-check-'));
+  const artifactDir = path.join(tmpRoot, 'artifact');
+  fs.cpSync(outDir, artifactDir, { recursive: true });
+  const isolatedOutfile = path.join(artifactDir, path.relative(outDir, outfile));
+
+  const invokeCode = invoke
+    ?
     `const h = m && m[${JSON.stringify(name)}];` +
     `if (typeof h !== 'function') process.exit(3);` +
     `let settled = false;` +
@@ -29,9 +33,24 @@ function selfCheck(outfile, name) {
     `  if (r && typeof r.then === 'function') r.then(() => finish(0)).catch(e => finish(4, e));` +
     `  else if (r !== undefined || h.length < 3) finish(0);` +
     `  else setTimeout(() => finish(4, new Error('callback-style handler did not complete within 1000 ms')), 1000);` +
-    `} catch(e) { finish(4, e); }`;
-  const r = spawnSync(process.execPath, ['-e', checkCode], { encoding: 'utf8', timeout: 15000 });
-  if (r.status === 0) return { ok: true, handler: name, invoked: true };
+    `} catch(e) { finish(4, e); }`
+    :
+    `const h = m && m[${JSON.stringify(name)}];` +
+    `if (typeof h !== 'function') process.exit(3);`;
+  const checkCode = `const m = require(${JSON.stringify(isolatedOutfile)});` + invokeCode;
+
+  let r;
+  try {
+    r = spawnSync(process.execPath, ['-e', checkCode], {
+      cwd: artifactDir,
+      encoding: 'utf8',
+      timeout: 15000,
+      env: { ...process.env, NODE_PATH: '' },
+    });
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+  if (r.status === 0) return { ok: true, handler: name, invoked: !!invoke };
   if (r.status === 3) return { ok: false, handler: name, invoked: false, reason: 'export missing or not a function' };
   if (r.status === 4) {
     const err = (r.stderr || '').trim().split('\n').pop();
@@ -63,8 +82,8 @@ function listByExt(dir, ext) {
 // Copy an extra file/dir into the output at the same relative location.
 // Returns a warning string on failure, otherwise null.
 function copyAsset(projectDir, outDir, rel) {
-  const from = path.resolve(projectDir, rel);
-  const to = path.resolve(outDir, rel);
+  const from = resolveSafeAssetPath(projectDir, rel);
+  const to = resolveSafeAssetPath(outDir, rel);
   if (!fs.existsSync(from)) return `asset not found, skipped: ${rel}`;
   fs.mkdirSync(path.dirname(to), { recursive: true });
   const st = fs.statSync(from);
@@ -173,7 +192,7 @@ async function compressNode(cfg) {
     throw new Error(`unknown engine '${engineName}'. Use 'auto', 'esbuild', 'webpack', or 'rollup'.`);
   }
 
-  const outDir = path.resolve(projectDir, out);
+  const outDir = resolveSafeOutputDir(projectDir, out);
   const outBase = path.basename(outDir);
 
   // Measure the original package BEFORE we create the output dir, so the
@@ -236,9 +255,9 @@ async function compressNode(cfg) {
   // Smoke-test the artifact unless disabled.
   let check = null;
   if (cfg.check !== false) {
-    check = selfCheck(outfile, cfg.handler || 'handler');
+    check = selfCheck(outDir, outfile, cfg.handler || 'handler', !!cfg.invokeCheck);
     if (!check.ok) {
-      warnings.push(`self-check failed: export '${check.handler}' — ${check.reason}`);
+      throw new Error(`post-build self-check failed for export '${check.handler}': ${check.reason}`);
     } else if (check.invokeWarning) {
       warnings.push(`self-check warning: ${check.invokeWarning}`);
     }

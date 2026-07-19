@@ -4,8 +4,8 @@ Name: xcompress
 Provider:
   - 阿里云
   - 腾讯云
-Version: 0.1.4
-Description: Compress serverless function code before deploy — bundle Node deps into one minified file or slim the Python package — to reduce cold-start time.
+Version: 0.1.5
+Description: Optimize serverless deployment artifacts by bundling Node dependencies or slimming Python packages before deploy.
 HomePage: https://github.com/anycodes/xCompress
 Effective: Public
 Tags:
@@ -97,6 +97,11 @@ Parameters:
       required: false
       description: Load the built artifact and validate the handler export
       default: true
+    invokeCheck:
+      type: boolean
+      required: false
+      description: Invoke the handler with an empty event after isolated load validation
+      default: false
     dropConsole:
       type: boolean
       required: false

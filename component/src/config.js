@@ -17,7 +17,8 @@ const DEFAULTS = {
   sourcemap: false,
   keepNames: false, // preserve fn/class names (safer for reflection-based code)
   handler: 'handler', // export name validated by the post-build self-check
-  check: true, // load the bundle in a child process and verify the handler
+  check: true, // load an isolated copy of the artifact and verify the handler
+  invokeCheck: false, // also invoke the handler with an empty event (opt-in)
   dropConsole: false, // strip console.* calls (high level enables this)
   // python-only
   pyStripSo: false, // also strip debug symbols from .so (needs `strip` on PATH)

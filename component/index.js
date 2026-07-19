@@ -37,6 +37,7 @@ const PROP_KEYS = [
   'keepNames',
   'handler',
   'check',
+  'invokeCheck',
   'dropConsole',
   'pyStripSo',
   'pyPruneMeta',
@@ -77,7 +78,8 @@ class Component {
       const c = result.check;
       if (!c.ok) console.log(`self-check: FAILED - export '${c.handler}': ${c.reason}`);
       else if (c.invoked) console.log(`self-check: export '${c.handler}' is callable; empty-event invocation OK`);
-      else console.log(`self-check: export '${c.handler}' is callable; invocation warning`);
+      else if (c.invokeWarning) console.log(`self-check: export '${c.handler}' is callable; invocation warning`);
+      else console.log(`self-check: isolated artifact loads and export '${c.handler}' is callable`);
     }
     if (result.warnings && result.warnings.length) {
       console.log(`${result.warnings.length} warning(s):`);

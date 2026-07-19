@@ -211,7 +211,7 @@ test('compress node copies native .node binaries instead of failing', async () =
   fs.writeFileSync(path.join(d, 'addon.node'), Buffer.from('\x7fELF-fake'));
   fs.writeFileSync(
     path.join(d, 'index.js'),
-    "const a = require('./addon.node');\nexports.handler = () => typeof a;"
+    "exports.handler = () => typeof require('./addon.node');"
   );
   const result = await compress(d, { runtime: 'node', out: 'dist' });
   const copied = fs.readdirSync(result.outDir).filter((f) => f.endsWith('.node'));
@@ -225,16 +225,18 @@ test('self-check passes when the handler export exists', async () => {
   fs.writeFileSync(path.join(d, 'index.js'), 'exports.handler = () => 1;');
   const result = await compress(d, { runtime: 'node', out: 'dist' });
   assert.ok(result.check && result.check.ok, 'self-check ok');
+  assert.strictEqual(result.check.invoked, false, 'empty-event invocation is opt-in');
   assert.ok(!result.warnings.some((w) => /self-check/.test(w)));
   fs.rmSync(d, { recursive: true, force: true });
 });
 
-test('self-check fails (with warning) when the handler export is missing', async () => {
+test('self-check blocks the build when the handler export is missing', async () => {
   const d = tmpdir('scc-check-bad-');
   fs.writeFileSync(path.join(d, 'index.js'), 'exports.notHandler = () => 1;');
-  const result = await compress(d, { runtime: 'node', out: 'dist' });
-  assert.ok(result.check && result.check.ok === false, 'self-check reports failure');
-  assert.ok(result.warnings.some((w) => /self-check failed/.test(w)), 'warning surfaced');
+  await assert.rejects(
+    () => compress(d, { runtime: 'node', out: 'dist' }),
+    /post-build self-check failed.*export missing or not a function/
+  );
   fs.rmSync(d, { recursive: true, force: true });
 });
 
@@ -244,7 +246,7 @@ test('self-check surfaces an empty-event invocation error as a warning', async (
     path.join(d, 'index.js'),
     "exports.handler = (event) => { if (!event.required) throw new Error('required missing'); };"
   );
-  const result = await compress(d, { runtime: 'node', out: 'dist' });
+  const result = await compress(d, { runtime: 'node', out: 'dist', invokeCheck: true });
   assert.ok(result.check && result.check.ok, 'artifact still loads and exports the handler');
   assert.ok(result.check.invokeWarning, 'dry-run warning retained in check result');
   assert.ok(
@@ -260,7 +262,7 @@ test('self-check completes a callback-style handler', async () => {
     path.join(d, 'index.js'),
     "exports.handler = (event, context, callback) => setTimeout(() => callback(null, 'ok'), 10);"
   );
-  const result = await compress(d, { runtime: 'node', out: 'dist' });
+  const result = await compress(d, { runtime: 'node', out: 'dist', invokeCheck: true });
   assert.ok(result.check && result.check.ok, 'artifact loads and exports handler');
   assert.strictEqual(result.check.invoked, true, 'callback completed during dry run');
   assert.ok(!result.check.invokeWarning, 'no callback invocation warning');
@@ -290,6 +292,75 @@ test('compress node keeps externals as a runtime require (not inlined)', async (
   assert.ok(/@scc\/platform-sdk/.test(src), 'external left as a runtime require, not bundled');
   assert.ok(result.check && result.check.ok, 'self-check still passes');
   fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('isolated self-check rejects a top-level external missing from the artifact', async () => {
+  const d = tmpdir('scc-ext-isolated-');
+  const pkg = path.join(d, 'node_modules', 'fixture-external');
+  fs.mkdirSync(pkg, { recursive: true });
+  fs.writeFileSync(path.join(pkg, 'index.js'), "module.exports = 'available only in source tree';");
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "const value = require('fixture-external'); exports.handler = () => value;"
+  );
+  await assert.rejects(
+    () => compress(d, { runtime: 'node', out: 'dist', externals: ['fixture-external'] }),
+    /post-build self-check failed.*bundle failed to load/
+  );
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('unsafe output and asset paths are rejected without deleting external files', async () => {
+  const root = tmpdir('scc-safe-paths-');
+  const project = path.join(root, 'project');
+  const outside = path.join(root, 'outside');
+  fs.mkdirSync(project);
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(project, 'index.js'), 'exports.handler = () => 1;');
+  const sentinel = path.join(outside, 'keep.txt');
+  fs.writeFileSync(sentinel, 'keep');
+
+  for (const runtime of ['node', 'python']) {
+    for (const out of ['.', '..', outside]) {
+      await assert.rejects(
+        () => compress(project, { runtime, out }),
+        /output directory must be inside the project directory/
+      );
+      assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), 'keep');
+    }
+  }
+
+  const link = path.join(project, 'linked-outside');
+  fs.symlinkSync(outside, link, 'dir');
+  await assert.rejects(
+    () => compress(project, { runtime: 'node', out: 'linked-outside/dist' }),
+    /resolves outside the project directory through a symbolic link/
+  );
+  await assert.rejects(
+    () => compress(project, { runtime: 'node', out: 'dist', assets: ['../outside/keep.txt'] }),
+    /asset path must be inside the project directory/
+  );
+  assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), 'keep');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('minifiers preserve license comments in the deployment artifact', async () => {
+  const engines = ['esbuild', 'webpack', 'rollup'];
+  for (const engine of engines) {
+    try {
+      require.resolve(engine === 'rollup' ? 'rollup' : engine);
+    } catch {
+      continue;
+    }
+    const d = tmpdir(`scc-license-${engine}-`);
+    fs.writeFileSync(
+      path.join(d, 'index.js'),
+      '/*! @license fixture-license */\nexports.handler = () => 1;'
+    );
+    const result = await compress(d, { runtime: 'node', engine, out: 'dist' });
+    assert.match(fs.readFileSync(result.outfile, 'utf8'), /fixture-license/, `${engine} preserves notice`);
+    fs.rmSync(d, { recursive: true, force: true });
+  }
 });
 
 test('minify yields a smaller artifact than --no-minify', async () => {

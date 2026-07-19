@@ -1,7 +1,7 @@
 {
   "name": "xcompress-component",
-  "version": "0.1.4",
-  "description": "Serverless Devs component that compresses function code (bundle for Node, slim for Python) before deploy to cut cold-start time.",
+  "version": "0.1.5",
+  "description": "Serverless Devs component that bundles Node.js dependencies or slims Python deployment packages before deploy.",
   "main": "index.js",
   "type": "commonjs",
   "keywords": [
