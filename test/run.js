@@ -76,6 +76,13 @@ test('resolveConfig auto-detects entry', () => {
   fs.rmSync(d, { recursive: true, force: true });
 });
 
+test('high preset does not implicitly enable behaviour-changing console removal', () => {
+  const d = tmpdir('scc-high-cfg-');
+  const cfg = resolveConfig(d, { level: 'high' });
+  assert.strictEqual(cfg.dropConsole, false);
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
 // --- node runtime (esbuild) -------------------------------------------------
 
 test('compress node bundles multi-file project into one file', async () => {
@@ -247,6 +254,19 @@ test('self-check surfaces an empty-event invocation error as a warning', async (
   fs.rmSync(d, { recursive: true, force: true });
 });
 
+test('self-check completes a callback-style handler', async () => {
+  const d = tmpdir('scc-check-callback-');
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    "exports.handler = (event, context, callback) => setTimeout(() => callback(null, 'ok'), 10);"
+  );
+  const result = await compress(d, { runtime: 'node', out: 'dist' });
+  assert.ok(result.check && result.check.ok, 'artifact loads and exports handler');
+  assert.strictEqual(result.check.invoked, true, 'callback completed during dry run');
+  assert.ok(!result.check.invokeWarning, 'no callback invocation warning');
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
 test('self-check honors a custom handler name and can be disabled', async () => {
   const d = tmpdir('scc-check-name-');
   fs.writeFileSync(path.join(d, 'index.js'), 'exports.main = () => 1;');
@@ -282,6 +302,28 @@ test('minify yields a smaller artifact than --no-minify', async () => {
   const minBytes = measure(min.outDir).bytes;
   const rawBytes = measure(raw.outDir).bytes;
   assert.ok(minBytes < rawBytes, `minified ${minBytes}B should be < unminified ${rawBytes}B`);
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('dropConsole is explicit and reports its semantic risk', async () => {
+  const d = tmpdir('scc-drop-console-');
+  fs.writeFileSync(
+    path.join(d, 'index.js'),
+    'let n=0;function bump(){n+=1;return n;}exports.handler=()=>{console.assert(true,bump());return n;};'
+  );
+  const kept = await compress(d, { runtime: 'node', level: 'high', out: 'dist-kept' });
+  delete require.cache[require.resolve(kept.outfile)];
+  assert.strictEqual(require(kept.outfile).handler(), 1, 'high preset preserves console argument evaluation');
+
+  const dropped = await compress(d, {
+    runtime: 'node',
+    level: 'high',
+    dropConsole: true,
+    out: 'dist-dropped',
+  });
+  delete require.cache[require.resolve(dropped.outfile)];
+  assert.strictEqual(require(dropped.outfile).handler(), 0, 'explicit option removes the console call');
+  assert.ok(dropped.warnings.some((w) => /dropConsole.*change behaviour/.test(w)));
   fs.rmSync(d, { recursive: true, force: true });
 });
 

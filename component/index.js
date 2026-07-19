@@ -73,6 +73,16 @@ class Component {
     const out = path.relative(projectDir, result.outfile || result.outDir);
     console.log(`scc: ${result.runtime} / ${result.engine || 'slim'} -> ${out}`);
     console.log(renderTable(result.report));
+    if (result.check) {
+      const c = result.check;
+      if (!c.ok) console.log(`self-check: FAILED - export '${c.handler}': ${c.reason}`);
+      else if (c.invoked) console.log(`self-check: export '${c.handler}' is callable; empty-event invocation OK`);
+      else console.log(`self-check: export '${c.handler}' is callable; invocation warning`);
+    }
+    if (result.warnings && result.warnings.length) {
+      console.log(`${result.warnings.length} warning(s):`);
+      for (const warning of result.warnings) console.log(`  ! ${warning}`);
+    }
     console.log(`done in ${ms} ms`);
 
     return { ...result, durationMs: ms };

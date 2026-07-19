@@ -11,23 +11,34 @@ const { scanDynamicRequire, scanDirnameUsage } = require('../detect');
 // produced file is loadable and exposes the entry point, not just smaller.
 function selfCheck(outfile, name) {
   // Phase 1: verify the handler export exists and is callable
-  // Phase 2: dry-run invoke with empty event to catch obvious runtime errors
+  // Phase 2: attempt an empty-event invocation. Passing a callback as the
+  // third argument also covers common Node.js FaaS callback handlers.
   const checkCode =
     `const m = require(${JSON.stringify(outfile)});` +
-    `if (!m || typeof m[${JSON.stringify(name)}] !== 'function') process.exit(3);` +
-    `try { const r = m[${JSON.stringify(name)}]({}, {});` +
-    `  if (r && typeof r.then === 'function') r.then(() => process.exit(0)).catch(e => { process.stderr.write(String(e.message || e)); process.exit(4); });` +
-    `  else process.exit(0);` +
-    `} catch(e) { process.stderr.write(String(e.message || e)); process.exit(4); }`;
+    `const h = m && m[${JSON.stringify(name)}];` +
+    `if (typeof h !== 'function') process.exit(3);` +
+    `let settled = false;` +
+    `const finish = (code, error) => {` +
+    `  if (settled) return; settled = true;` +
+    `  if (error) process.stderr.write(String(error.message || error));` +
+    `  process.exit(code);` +
+    `};` +
+    `const callback = (error) => error ? finish(4, error) : finish(0);` +
+    `try {` +
+    `  const r = h({}, {}, callback);` +
+    `  if (r && typeof r.then === 'function') r.then(() => finish(0)).catch(e => finish(4, e));` +
+    `  else if (r !== undefined || h.length < 3) finish(0);` +
+    `  else setTimeout(() => finish(4, new Error('callback-style handler did not complete within 1000 ms')), 1000);` +
+    `} catch(e) { finish(4, e); }`;
   const r = spawnSync(process.execPath, ['-e', checkCode], { encoding: 'utf8', timeout: 15000 });
-  if (r.status === 0) return { ok: true, handler: name };
-  if (r.status === 3) return { ok: false, handler: name, reason: 'export missing or not a function' };
+  if (r.status === 0) return { ok: true, handler: name, invoked: true };
+  if (r.status === 3) return { ok: false, handler: name, invoked: false, reason: 'export missing or not a function' };
   if (r.status === 4) {
     const err = (r.stderr || '').trim().split('\n').pop();
-    return { ok: true, handler: name, invokeWarning: `handler threw on dry-run: ${err}` };
+    return { ok: true, handler: name, invoked: false, invokeWarning: `empty-event invocation failed: ${err}` };
   }
   const err = ((r.stderr || '') + (r.error ? r.error.message : '')).trim().split('\n').pop();
-  return { ok: false, handler: name, reason: `bundle failed to load: ${err || 'unknown error'}` };
+  return { ok: false, handler: name, invoked: false, reason: `bundle failed to load: ${err || 'unknown error'}` };
 }
 
 // Recursively list files under `dir` whose name ends with `ext`.
@@ -176,6 +187,11 @@ async function compressNode(cfg) {
   const { outfile, warnings: engineWarnings = [] } = await engine.bundle(cfg, absEntry, outDir);
 
   const warnings = [...engineWarnings];
+  if (cfg.dropConsole) {
+    warnings.push(
+      'dropConsole is explicitly enabled and can change behaviour by removing evaluation of console-call arguments; run functional tests on the built artifact'
+    );
+  }
 
   // Copy declared assets (data files, templates, certs, ...) into the bundle.
   const assets = cfg.assets || [];

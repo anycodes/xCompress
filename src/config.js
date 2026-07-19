@@ -28,7 +28,7 @@ const DEFAULTS = {
 const LEVEL_PRESETS = {
   low: { minify: false, keepNames: true, sourcemap: true, dropConsole: false },
   medium: { minify: true, keepNames: false, sourcemap: false, dropConsole: false },
-  high: { minify: true, keepNames: false, sourcemap: false, dropConsole: true },
+  high: { minify: true, keepNames: false, sourcemap: false, dropConsole: false },
 };
 
 const ENTRY_CANDIDATES = {

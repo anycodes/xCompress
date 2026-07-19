@@ -22,8 +22,8 @@ It ships in two forms over one shared core:
 
 | Nr | Code metadata description | |
 |----|---------------------------|---|
-| C1 | Current code version | 0.1.1 (CLI/core); 0.1.3 (Serverless Devs component) |
-| C2 | Permanent link to code / repository | https://github.com/anycodes/xCompress/releases/tag/v0.1.1 |
+| C1 | Current code version | 0.1.2 (CLI/core); 0.1.4 (Serverless Devs component) |
+| C2 | Permanent link to code / repository | https://github.com/anycodes/xCompress/releases/tag/v0.1.2 |
 | C3 | Legal Code License | MIT |
 | C4 | Code versioning system used | git |
 | C5 | Software code languages, tools, services used | JavaScript (Node.js >= 18), esbuild, Rollup, webpack; targets Node.js and Python FaaS runtimes |
@@ -65,14 +65,14 @@ The Python win therefore depends on how much deadweight the package carries.
 ```bash
 git clone https://github.com/anycodes/xCompress.git
 cd xCompress
-git checkout v0.1.1
+git checkout v0.1.2
 npm ci                      # installs the exact public-registry lockfile
 npm link                    # optional: exposes `scc` on your PATH
 ```
 
 Requires Node.js >= 18 and npm >= 8. The Python slimmer additionally needs
 `python3` on PATH. Library consumers can install the published package with
-`npm install xcompress@0.1.1` after release.
+`npm install xcompress@0.1.2` after release.
 
 ## CLI usage
 
@@ -93,6 +93,7 @@ scc [project-dir] [options]
 | `--no-minify` | Disable minification |
 | `--sourcemap` | Emit a source map |
 | `--keep-names` | Preserve function/class names (safer for reflection) |
+| `--drop-console` | Explicitly remove console calls; may remove argument side effects and requires functional testing |
 | `--handler <name>` | Export name validated by the self-check (default: `handler`) |
 | `--no-check` | Skip the post-build artifact self-check |
 | `--py-strip-so` | (python) strip debug symbols from `.so` files |
@@ -107,8 +108,10 @@ Entry auto-detection looks for `index.js`/`app.js`/`handler.js`/`main.js`
 `scc` tries hard not to silently produce a broken bundle:
 
 - **Self-check** — after a Node build it loads the artifact in an isolated
-  child process and verifies the handler export is callable. The CLI prints
-  `self-check: export 'handler' is callable  OK`, or a failure.
+  child process, verifies the handler export is callable, and attempts an
+  empty-event invocation for synchronous, Promise-based, and callback-style
+  handlers. Input-dependent failures remain warnings rather than equivalence
+  guarantees.
 - **Dynamic `require`/`import` warning** — bundlers leave non-static calls like
   `require('./plugins/' + name)` as-is and do **not** bundle the target, so the
   artifact would break at runtime. `scc` scans your source and warns.
@@ -333,6 +336,9 @@ actually get depends on several factors and will differ:
   or minification, so a package that carries little deadweight shrinks little.
 - **Engine and options.** esbuild vs. webpack, `--minify` / `--no-minify`,
   `--external`, `--sourcemap`, and the target version all change the output.
+- **Console removal.** `--drop-console` is deliberately explicit because a
+  console call can contain side-effectful arguments; removing the call can
+  therefore change behaviour.
 - **Tool and engine versions.** `scc` and its bundlers (esbuild, webpack) are
   **upgraded over time**. Their optimization behavior and the exact output sizes
   may change between releases, and correctness/stability fixes can take

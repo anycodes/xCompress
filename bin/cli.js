@@ -22,6 +22,7 @@ Options:
   --no-minify               Disable minification
   --sourcemap               Emit a source map
   --keep-names              Preserve function/class names
+  --drop-console            Remove console calls (unsafe unless functionally tested)
   --handler <name>          Export name to validate (node, default: handler)
   --no-check                Skip the post-build artifact self-check (node)
   --py-strip-so             (python) strip debug symbols from .so files
@@ -82,6 +83,9 @@ function parseArgs(argv) {
         break;
       case '--keep-names':
         opts.keepNames = true;
+        break;
+      case '--drop-console':
+        opts.dropConsole = true;
         break;
       case '--handler':
         opts.handler = next();
@@ -154,9 +158,11 @@ async function main() {
   if (result.check) {
     const c = result.check;
     process.stdout.write(
-      c.ok
-        ? `self-check: export '${c.handler}' is callable  OK\n\n`
-        : `self-check: FAILED — export '${c.handler}': ${c.reason}\n\n`
+      !c.ok
+        ? `self-check: FAILED — export '${c.handler}': ${c.reason}\n\n`
+        : c.invoked
+          ? `self-check: export '${c.handler}' is callable; empty-event invocation OK\n\n`
+          : `self-check: export '${c.handler}' is callable; invocation warning\n\n`
     );
   }
 

@@ -1,4 +1,4 @@
-# Reproducing xCompress 0.1.1
+# Reproducing xCompress 0.1.2
 
 ## Environment
 
@@ -15,7 +15,7 @@ use `https://registry.npmjs.org/`; no private registry is required.
 ```bash
 git clone https://github.com/anycodes/xCompress.git
 cd xCompress
-git checkout v0.1.1
+git checkout v0.1.2
 npm ci --registry=https://registry.npmjs.org
 npm run verify
 ```
