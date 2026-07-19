@@ -10,6 +10,8 @@
   overstating a load-only check.
 - Add regression tests for default console preservation, callback handlers,
   and the explicit console-removal warning.
+- Update esbuild to 0.28.1 and `@rollup/plugin-terser` to 1.0.0; a clean
+  production-dependency audit reports no known vulnerabilities.
 
 ## 0.1.1 - 2026-07-16
 

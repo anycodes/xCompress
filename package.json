@@ -41,12 +41,12 @@
     "node": ">=18"
   },
   "dependencies": {
-    "esbuild": "0.21.5"
+    "esbuild": "0.28.1"
   },
   "optionalDependencies": {
     "@rollup/plugin-commonjs": "29.0.3",
     "@rollup/plugin-node-resolve": "16.0.3",
-    "@rollup/plugin-terser": "0.4.4",
+    "@rollup/plugin-terser": "1.0.0",
     "rollup": "4.61.0",
     "terser-webpack-plugin": "5.3.17",
     "webpack": "5.108.4"

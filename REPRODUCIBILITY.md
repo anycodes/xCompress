@@ -22,7 +22,7 @@ npm run verify
 
 Expected results:
 
-- 32 unit/integration tests pass.
+- 35 unit/integration tests pass.
 - 5 end-to-end scenarios pass, including the Serverless Devs component adapter.
 - The generated `dist/` directories are removed by the scenario runner.
 
@@ -32,11 +32,13 @@ existing `node_modules` directory.
 
 ## Artifact-level bundler comparison
 
-The manuscript supplement contains `benchmark_direct_esbuild.js` and three
-locked scenario projects. It invokes esbuild 0.21.5 directly and xCompress with
-the same entry, target, CommonJS format, platform, and minification settings;
-it then compares SHA-256 hashes and records build time. This isolates the
-wrapper's orchestration overhead from the bundler transformation.
+The manuscript supplement contains `benchmark_direct_esbuild.mjs` and three
+locked scenario projects. The retained comparison used the previous 0.1.1
+snapshot and esbuild 0.21.5; it invoked esbuild directly and xCompress with the
+same entry, target, CommonJS format, platform, and minification settings, then
+compared SHA-256 hashes and recorded build time. This isolates the wrapper's
+orchestration overhead from the bundler transformation. The current lockfile
+uses esbuild 0.28.1 after dependency-security maintenance.
 
 ## Correctness boundary
 

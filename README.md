@@ -27,7 +27,7 @@ It ships in two forms over one shared core:
 | C3 | Legal Code License | MIT |
 | C4 | Code versioning system used | git |
 | C5 | Software code languages, tools, services used | JavaScript (Node.js >= 18), esbuild, Rollup, webpack; targets Node.js and Python FaaS runtimes |
-| C6 | Compilation requirements, operating environments, dependencies | Node.js >= 18; exact versions are locked in `package-lock.json`: `esbuild` 0.21.5, `rollup` 4.61.0, `webpack` 5.108.4 and their declared plugins; `python3` + `strip` are optional for Python slimming |
+| C6 | Compilation requirements, operating environments, dependencies | Node.js >= 18; exact versions are locked in `package-lock.json`: `esbuild` 0.28.1, `rollup` 4.61.0, `webpack` 5.108.4 and their declared plugins; `python3` + `strip` are optional for Python slimming |
 | C7 | Link to developer documentation / manual | This README |
 | C8 | Support | https://github.com/anycodes/xCompress/issues |
 
