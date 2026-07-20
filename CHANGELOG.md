@@ -25,8 +25,8 @@
   overstating a load-only check.
 - Add regression tests for default console preservation, callback handlers,
   and the explicit console-removal warning.
-- Update esbuild to 0.28.1 and `@rollup/plugin-terser` to 1.0.0; a clean
-  production-dependency audit reports no known vulnerabilities.
+- Update esbuild to 0.28.1 and `@rollup/plugin-terser` to 1.0.0, and refresh
+  the public-registry lockfiles.
 
 ## 0.1.1 - 2026-07-16
 
@@ -41,4 +41,4 @@
 - Align the supported Node.js version with the pinned dependency chain.
 
 The transformation logic is unchanged from 0.1.0; this release repairs the
-installation and reproducibility metadata used by the manuscript artifact.
+installation and reproducibility metadata used by the release artifact.

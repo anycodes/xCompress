@@ -33,13 +33,14 @@ existing `node_modules` directory.
 
 ## Artifact-level bundler comparison
 
-The manuscript supplement contains `benchmark_direct_esbuild.mjs` and three
-locked scenario projects. The retained comparison used the previous 0.1.1
-snapshot and esbuild 0.21.5; it invoked esbuild directly and xCompress with the
-same entry, target, CommonJS format, platform, and minification settings, then
-compared SHA-256 hashes and recorded build time. This isolates the wrapper's
-orchestration overhead from the bundler transformation. The current lockfile
-uses esbuild 0.28.1 after dependency-security maintenance.
+The companion evaluation package contains `benchmark_direct_esbuild.mjs` and
+three locked scenario projects. The retained comparison uses xCompress 0.1.3
+and esbuild 0.28.1; it invokes esbuild directly and xCompress with the same
+entry, target, CommonJS format, platform, native-loader, external-module,
+source-map, legal-comment, and minification settings. It then compares byte
+counts and SHA-256 hashes and records paired build times. This isolates the
+wrapper's orchestration and validation overhead from the bundler
+transformation.
 
 ## Correctness boundary
 
